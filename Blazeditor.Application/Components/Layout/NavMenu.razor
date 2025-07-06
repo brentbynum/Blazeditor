@@ -2,32 +2,21 @@
 @using Blazeditor.Application.Services
 @inject DefinitionManager Definition
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Blazeditor.Application</a>
-    </div>
-</div>
-
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
+<div class="d-flex flex-column align-items-stretch flex-shrink-0 bg-body-tertiary" style="width: 380px;">
+    <a href="/" class="d-flex align-items-center flex-shrink-0 p-3 link-body-emphasis text-decoration-none border-bottom">
+        <svg class="bi pe-none me-2" width="30" height="24" aria-hidden="true"><use xlink:href="#bootstrap"></use></svg>
+        <span class="fs-5 fw-semibold">Areas</span>
+    </a>
+    <div class="list-group list-group-flush border-bottom scrollarea">
         @foreach (var area in Definition.GetAreas())
         {
-            <div class="nav-item px-3 mb-2">
-                <NavLink class="nav-link" href=@($"/area/{area.Id}")>
-                    <span class="fw-medium fs-5">@area.Name</span>
-                    @if (!string.IsNullOrWhiteSpace(area.Description))
-                    {
-                        <div class="ms-3 fst-italic text-muted small">@area.Description</div>
-                    }
-                </NavLink>
-            </div>
+            <NavLink class="list-group-item list-group-item-action py-3 lh-sm" href=@($"/area/{area.Id}")>
+                <div class="d-flex w-100 align-items-center justify-content-between">
+                    <strong class="mb-1">@area.Name</strong>
+                    <small class="text-body-secondary">@area.Id</small>
+                </div>
+                <div class="col-10 mb-1 small">@area.Description</div>
+            </NavLink>
         }
-    </nav>
+    </div>
 </div>

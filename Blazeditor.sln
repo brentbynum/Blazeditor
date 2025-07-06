@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36221.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blazeditor.App", "Blazeditor.App\Blazeditor.App.csproj", "{868C781B-3D8C-44B7-9025-DE2768A5E4CD}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blazeditor.Application", "Blazeditor.Application\Blazeditor.Application.csproj", "{28FA5FAB-7C10-46E5-A5FE-CAC11289961D}"
 EndProject
 Global
@@ -13,10 +11,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{868C781B-3D8C-44B7-9025-DE2768A5E4CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{868C781B-3D8C-44B7-9025-DE2768A5E4CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{868C781B-3D8C-44B7-9025-DE2768A5E4CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{868C781B-3D8C-44B7-9025-DE2768A5E4CD}.Release|Any CPU.Build.0 = Release|Any CPU
 		{28FA5FAB-7C10-46E5-A5FE-CAC11289961D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{28FA5FAB-7C10-46E5-A5FE-CAC11289961D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{28FA5FAB-7C10-46E5-A5FE-CAC11289961D}.Release|Any CPU.ActiveCfg = Release|Any CPU

@@ -2,20 +2,22 @@
 @inherits LayoutComponentBase
 @inject DefinitionManager Definition
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
-
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+<div class="container-fluid vh-100">
+    <div class="row h-100 flex-nowrap">
+        <div class="col-auto p-0 bg-body-tertiary border-end">
+            <NavMenu />
         </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
+        <div class="col d-flex flex-column p-0">
+            <div class="top-row px-4">
+                <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            </div>
+            <main class="flex-fill">
+                <article class="content px-4">
+                    @Body
+                </article>
+            </main>
+        </div>
+    </div>
 </div>
 
 <div id="blazor-error-ui">
@@ -36,7 +38,6 @@
             Definition.AddPortal(home, dungeon, 0, 0, 1, 1);
             Definition.AddPortal(dungeon, forest, 1, 1, 2, 2);
             Definition.AddPortal(forest, home, 2, 2, 0, 0);
-
         }
         base.OnInitialized();
     }
