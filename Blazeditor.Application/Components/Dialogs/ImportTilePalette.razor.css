@@ -1,0 +1,74 @@
+﻿.modal.hide {
+    display: none;
+}
+
+.modal.show {
+    display: block;
+    /* Add any additional modal styling you need here */
+}
+
+.preview-pane {
+    min-height: 300px;
+    min-width: 200px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.preview-image {
+    width: 320px;
+    height: 240px;
+    object-fit: contain;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    background: #f8f9fa;
+    display: block;
+}
+
+.modal-lg {
+    max-width: 800px;
+}
+
+.modal-content {
+    min-height: 500px;
+}
+.tile-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.tile-option {
+    transition: background 0.2s, color 0.2s;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0.75rem 1rem;
+}
+
+    .tile-option.active, .tile-option:focus {
+        background: #e9ecef;
+        color: #0d6efd;
+        outline: none;
+    }
+
+.file-icon {
+    font-size: 1.5rem;
+    color: #adb5bd;
+}
+
+.preview-pane {
+    min-height: 300px;
+    min-width: 200px;
+    text-align: center;
+}
+
+.preview-image {
+    max-height: 300px;
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}

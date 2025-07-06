@@ -1,0 +1,93 @@
+﻿@using Blazeditor.Application.Services
+@inject DefinitionManager Definition
+
+@code {
+    public List<string?> Filenames = new List<string?>();
+    public string? SelectedFilename { get; set; }
+    private string ModalClass => IsVisible ? "show" : "hide";
+
+    [Parameter] public EventCallback<string> OnConfirm { get; set; }
+
+    private bool IsVisible { get; set; }
+
+    protected override void OnInitialized()
+    {
+        // Initialize the tileset filenames from the DefinitionManager.
+        Filenames = Definition.GetTileImageFilenames();
+    }
+    public void Show()
+    {
+        IsVisible = true;
+        StateHasChanged();
+    }
+
+    private void Confirm()
+    {
+        OnConfirm.InvokeAsync(SelectedFilename);
+        Close();
+    }
+
+    private void Close()
+    {
+        IsVisible = false;
+        StateHasChanged();
+    }
+    private void SelectFile(string filename)
+    {
+        SelectedFilename = filename;
+    }
+
+    private string GetImageUrl(string filename)
+    {
+        // Adjust this if your images are in a subfolder
+        return $"images/{filename}";
+    }
+}
+
+<div class="modal @ModalClass" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <h5 class="modal-header">Select an image file to extract into tiles.</h5>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-5 border-end">
+                        <div class="list-group tile-list">
+                            @foreach (var filename in Filenames)
+                            {
+                                <button type="button"
+                                        class="list-group-item list-group-item-action d-flex align-items-center tile-option @(SelectedFilename == filename ? "active" : null)"
+                                        @onclick="() => SelectFile(filename)">
+                                    <span class="file-icon me-2"><i class="bi bi-image"></i></span>
+                                    <span class="file-name flex-grow-1">@filename</span>
+                                    @if (SelectedFilename == filename)
+                                    {
+                                        <span class="ms-auto text-primary"><i class="bi bi-check-circle-fill"></i></span>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-md-7 d-flex flex-column align-items-center justify-content-center preview-pane">
+                        @if (!string.IsNullOrEmpty(SelectedFilename))
+                        {
+                            <img src="@GetImageUrl(SelectedFilename)" alt="Preview" class="img-fluid rounded shadow-sm mb-3 preview-image" />
+                            <div class="text-muted small">@SelectedFilename</div>
+                        }
+                        else
+                        {
+                            <div class="text-muted">Select a file to preview</div>
+                        }
+                    </div>
+                </div>
+                <div class="mt-4 d-flex justify-content-end">
+                    <button type="button" class="btn btn-primary me-2" @onclick="Confirm" disabled="@(string.IsNullOrEmpty(SelectedFilename))">Confirm</button>
+                    <button type="button" class="btn btn-secondary" @onclick="Close">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
