@@ -11,4 +11,10 @@ namespace Blazeditor.Application.Models
         public int Width { get; set; } = width;
         public int Height { get; set; } = height;
     }
+
+    public struct Layout(int x, int y, int width, int height)
+    {
+        public Coordinate Location { get; set; } = new Coordinate(x, y);
+        public Size Size { get; set; } = new Size(width, height);
+    }
 }

@@ -1,6 +1,6 @@
 namespace Blazeditor.Application.Models
 {
-    public class ItemInstance(Item item, int x, int y) : BaseEntity
+    public class ItemInstance(Item item, int x, int y) : BaseEntity(item.Name, item.Description)
     {
         public Item Item { get; } = item;
         public Coordinate Location { get; set; } = new Coordinate(x, y);

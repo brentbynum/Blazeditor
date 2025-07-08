@@ -44,11 +44,7 @@ namespace Blazeditor.Application.Services
         {
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name cannot be null or empty.", nameof(name));
             if (string.IsNullOrWhiteSpace(description)) throw new ArgumentException("Description cannot be null or empty.", nameof(description));
-            var area = new Area
-            {
-                Name = name,
-                Description = description
-            };
+            var area = new Area(name, description);
             return AddArea(area);
         }
 
@@ -81,7 +77,7 @@ namespace Blazeditor.Application.Services
 
         public List<string?> GetTileImageFilenames()
         {
-            var imageDirectory = Path.Combine("wwwroot", "images");
+            var imageDirectory = Path.Combine("wwwroot", "tilesets");
             if (!Directory.Exists(imageDirectory)) return new List<string?>();
             return Directory.GetFiles(imageDirectory, "*.png")
                 .Select(Path.GetFileName)
@@ -89,11 +85,11 @@ namespace Blazeditor.Application.Services
                 .ToList();
         }
 
-        public List<Tile> AddTilePaletteToArea(Area area, string filename, Blazeditor.Application.Models.Size? baseCellSize = null)
+        public List<Tile> AddTilePaletteToArea(Area area, string filename)
         {
             if (area == null) throw new ArgumentNullException(nameof(area));
             if (string.IsNullOrWhiteSpace(filename)) throw new ArgumentException("Filename cannot be null or empty.", nameof(filename));
-            var tiles = ExtractTilesFromImage(filename, baseCellSize);
+            var tiles = ExtractTilesFromImage(filename);
             foreach (var tile in tiles)
             {
                 area.TilePalette.Add(tile);
@@ -101,14 +97,12 @@ namespace Blazeditor.Application.Services
             return tiles;
         }
 
-        public List<Tile> ExtractTilesFromImage(string filename, Blazeditor.Application.Models.Size? baseCellSize)
+        public List<Tile> ExtractTilesFromImage(string filename)
         {
             if (string.IsNullOrWhiteSpace(filename)) throw new ArgumentException("Filename cannot be null or empty.", nameof(filename));
-            var cellSize = baseCellSize ?? new Blazeditor.Application.Models.Size { Height = 64, Width = 64 }; // Use default value if null
-
             var baseName = Path.GetFileNameWithoutExtension(filename);
-            var imagePath = Path.Combine("wwwroot", "images", baseName + ".png");
-            var jsonPath = Path.Combine("wwwroot", "tileset", baseName + ".json");
+            var imagePath = Path.Combine("wwwroot", "tilesets", baseName + ".png");
+            var jsonPath = Path.Combine("wwwroot", "tilesets", baseName + ".json");
 
             if (!File.Exists(imagePath)) throw new FileNotFoundException($"Image file not found: {imagePath}");
             if (!File.Exists(jsonPath)) throw new FileNotFoundException($"JSON file not found: {jsonPath}");
@@ -116,6 +110,12 @@ namespace Blazeditor.Application.Services
             var json = File.ReadAllText(jsonPath);
             var doc = JsonDocument.Parse(json);
             var tiles = doc.RootElement.GetProperty("tiles");
+            var cellSizeVal = doc.RootElement.GetProperty("cellSize").GetInt32();
+            var cellSize = new Blazeditor.Application.Models.Size
+            {
+                Width = cellSizeVal,
+                Height = cellSizeVal
+            };
 
             var result = new List<Tile>();
             using (var image = Image.Load<Rgba32>(imagePath))
@@ -123,6 +123,7 @@ namespace Blazeditor.Application.Services
                 foreach (var tileElem in tiles.EnumerateArray())
                 {
                     string name = tileElem.GetProperty("name").GetString() ?? "tile";
+                    string description = tileElem.GetProperty("description").GetString() ?? string.Empty;
                     int w = tileElem.GetProperty("w").GetInt32();
                     int h = tileElem.GetProperty("h").GetInt32();
                     int x = tileElem.GetProperty("x").GetInt32();
@@ -141,7 +142,7 @@ namespace Blazeditor.Application.Services
                         tileImg.Save(ms, new PngEncoder());
                         var base64 = Convert.ToBase64String(ms.ToArray());
                         var base64Url = $"data:image/png;base64,{base64}";
-                        result.Add(new Tile(name, base64Url, new Blazeditor.Application.Models.Size(w, h)));
+                        result.Add(new Tile(name, description, "default", base64Url, new Blazeditor.Application.Models.Size(w, h)));
                     }
                 }
             }

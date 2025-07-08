@@ -1,0 +1,37 @@
+@using Blazeditor.Application.Models
+@inject IJSRuntime JS
+
+<canvas @ref="canvasRef" width="512" height="1024" style="border:1px solid #ccc; background:#f8f9fa; width:100%;"></canvas>
+
+@code {
+    private ElementReference canvasRef;
+    [Parameter] public List<Tile> Tiles { get; set; } = new();
+    [Parameter] public EventCallback<int> OnTileSelected { get; set; }
+    private DotNetObjectReference<TilePaletteCanvas>? dotNetRef;
+    private const int CellSize = 64;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Redraw the canvas when Tiles changes
+        if (Tiles != null && Tiles.Count > 0)
+        {
+            await JS.InvokeVoidAsync("tilePaletteCanvas.init", canvasRef, Tiles, CellSize);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("tilePaletteCanvas.setDotNetRef", dotNetRef);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnJsTileSelected(int tileId)
+    {
+        await OnTileSelected.InvokeAsync(tileId);
+        // Optionally update local state here
+    }
+}

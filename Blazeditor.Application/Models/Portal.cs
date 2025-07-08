@@ -1,6 +1,6 @@
 namespace Blazeditor.Application.Models
 {
-    public class Portal(Area destinationArea, Area locationArea, int destX, int destY, int locX, int locY) : BaseEntity
+    public class Portal(Area destinationArea, Area locationArea, int destX, int destY, int locX, int locY) : BaseEntity(destinationArea.Name, locationArea.Name)
     {
         public Area DestinationArea { get; set; } = destinationArea;
         public Area LocationArea { get; set; } = locationArea;

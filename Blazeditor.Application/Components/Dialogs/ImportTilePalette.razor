@@ -1,4 +1,6 @@
 ﻿@using Blazeditor.Application.Services
+@using Blazeditor.Application.Models
+@using Blazeditor.Application.Components.Dialogs
 @inject DefinitionManager Definition
 
 @code {
@@ -40,7 +42,7 @@
     private string GetImageUrl(string filename)
     {
         // Adjust this if your images are in a subfolder
-        return $"images/{filename}";
+        return $"tilesets/{filename}";
     }
 }
 
