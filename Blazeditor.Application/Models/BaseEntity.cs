@@ -1,6 +1,6 @@
 namespace Blazeditor.Application.Models
 {
-    public class BaseEntity(string name, string description)
+    public class BaseEntity(string name, string? description)
     {
         public int Id { get; private set; } = GenerateId();
         public string Name { get; set; } = name;

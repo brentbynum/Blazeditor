@@ -6,7 +6,7 @@
     <h3>Area Map</h3>
     <div id="mapEditorButtons" class="btn-toolbar">
         <div id="toolButtons" class="btn-group me-2">
-            <button class='btn btn-outline-secondary @(selectedTool == "select" ? "active" : "")' @onclick='() => SelectTool("paint")'>
+            <button class='btn btn-outline-secondary @(selectedTool == "select" ? "active" : "")' @onclick='() => SelectTool("select")'>
                 <i class="bi bi-cursor"></i>
             </button>
             <button class='btn btn-outline-secondary @(selectedTool == "paint" ? "active" : "")' @onclick='() => SelectTool("paint")'>
@@ -15,8 +15,11 @@
             <button class='btn btn-outline-secondary @(selectedTool == "fill" ? "active" : "")' @onclick='() => SelectTool("fill")'>
                 <i class="bi bi-paint-bucket"></i>
             </button>
-            <button class='btn btn-outline-secondary @(selectedTool == "eraser" ? "active" : "")' @onclick='() => SelectTool("eraser")'>
+            <button class='btn btn-outline-secondary @(selectedTool == "eraser" ? "active" : "")' @onclick='() => SelectTool("erase")'>
                 <i class="bi bi-eraser"></i>
+            </button>
+            <button class='btn btn-outline-secondary @(selectedTool == "pan" ? "active" : "")' @onclick='() => SelectTool("pan")'>
+                <i class="bi bi-arrows-move"></i>
             </button>
         </div>
         <div id="actionButtons" class="btn-group me-2">
@@ -24,9 +27,9 @@
                 <i class="bi bi-trash"></i>
             </button>
         </div>
-        <div id="viewPrefs" class="btn-group me-2">
+        <div id="viewPrefs" class="btn-group me-2" style="display:flex; align-items: center">
             <div class="form-check">
-                <input class="form-check-input" type="checkbox" checked id="viewGridChkBx" @onchange="@ToggleViewGrid">
+                <input class="form-check-input" type="checkbox" checked id="viewGridChkBx" @onchange="@SetShowGrid">
                 <label class="form-check-label" for="viewGridChkBx" >Show Grid</label>
             </div>
         </div>

@@ -1,9 +1,10 @@
 namespace Blazeditor.Application.Models
 {
-    public struct Coordinate(int x, int y)
+    public struct Coordinate(int x, int y, int level = 0)
     {
         public int X { get; set; } = x;
         public int Y { get; set; } = y;
+        public int Level { get; set; } = level; // Default level is 0
     }
 
     public struct Size(int width, int height)
@@ -12,9 +13,9 @@ namespace Blazeditor.Application.Models
         public int Height { get; set; } = height;
     }
 
-    public struct Layout(int x, int y, int width, int height)
+    public struct Layout(int x, int y, int level, int width, int height)
     {
-        public Coordinate Location { get; set; } = new Coordinate(x, y);
+        public Coordinate Location { get; set; } = new Coordinate(x, y, level);
         public Size Size { get; set; } = new Size(width, height);
     }
 }

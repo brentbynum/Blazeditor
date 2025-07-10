@@ -5,7 +5,7 @@ namespace Blazeditor.Application.Models
         public int Level { get; set; } = level;
         public Size Size { get; set; } = new Size(width, height);
         public Size TileSize { get; set; } = new Size(64, 64);
-        public Tile[] Tiles { get; set; } = new Tile[width * height];
+        public Tile?[] Tiles { get; set; } = new Tile[width * height];
         public Tile? this[int x, int y]
         {
             get => Tiles[y * Size.Width + x];
