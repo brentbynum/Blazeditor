@@ -4,7 +4,7 @@
 @using Blazeditor.Application.Services
 @inject DefinitionManager Definition
 
-<h1>@Definition.SelectedArea?.Name</h1>
+<h1>@Area?.Name</h1>
 <ImportTilePalette @ref="popupRef" OnConfirm="HandleInput" />
 
 <div class="container">
@@ -14,9 +14,9 @@
                 <div><h3>Tile Palette</h3></div>
                 <div @onclick="ShowImportTilePalette" class="btn btn-outline-secondary"><i class="bi bi-box-arrow-in-down"></i></div>
             </div>
-            @if (Definition.SelectedArea != null)
+            @if (Area != null)
             {
-                <TilePaletteCanvas Tiles="Definition.SelectedArea?.TilePalette ?? new List<Tile>()" OnTileSelected="OnTileSelected" />
+                <TilePaletteCanvas Tiles="Area.TilePalette ?? new List<Tile>()" OnTileSelected="OnTileSelected" />
             }
             @if(SelectedTile != null)
             {
@@ -25,8 +25,7 @@
             }
         </div>
         <div class="col-8">
-            <h1>Tile Map</h1>
-            <TileMapCanvas TileMaps="@Definition.SelectedArea?.TileMaps" OnTilePlaced="OnTilePlaced" />
+            <TileMapCanvas TileMaps="@Area?.TileMaps" TilePalette="@Area?.TilePalette" SelectedTileId="@(SelectedTile != null ? SelectedTile.Id : -1)" />
         </div>
     </div>
 </div>

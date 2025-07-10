@@ -10,10 +10,11 @@ namespace Blazeditor.Application.Components.Pages
         public int areaId { get; set; }
         private ImportTilePalette? popupRef;
         public Tile? SelectedTile  { get; set; }
-
+        public Area? Area { get; set; }
         protected override void OnParametersSet()
         {
             Definition.SelectedArea = Definition.GetAreas().FirstOrDefault(a => a.Id == areaId);
+            Area = Definition.SelectedArea;
         }
 
         private void ShowImportTilePalette()
@@ -30,24 +31,17 @@ namespace Blazeditor.Application.Components.Pages
 
         private void HandleInput(string input)
         {
-            Definition.AddTilePaletteToArea(Definition.SelectedArea, input);
-            StateHasChanged();
+            if (Area != null)
+            {
+                Definition.AddTilePaletteToArea(Area, input);
+                StateHasChanged();
+            }
         }
 
         public void OnTileSelected(int tileId)
         {
-            SelectedTile = Definition.SelectedArea.TilePalette.FirstOrDefault(t => t.Id == tileId);
+            SelectedTile = Area?.TilePalette.FirstOrDefault(t => t.Id == tileId);
             StateHasChanged();
         }
-
-        public void OnTilePlaced(TilePlacedEventArgs args)
-        {
-            var map = Definition?.SelectedArea?.TileMaps[args.Level];
-            if (map != null)
-            {
-                map[args.X, args.Y] = Definition?.SelectedArea?.TilePalette.FirstOrDefault(t => t.Id == args.TileId);
-            }
-        }
-
     }
 }

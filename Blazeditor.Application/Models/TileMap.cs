@@ -1,6 +1,6 @@
 namespace Blazeditor.Application.Models
 {
-    public class TileMap(int width, int height, int level) : BaseEntity("TileMap", "A map of tiles for a specific area")
+    public class TileMap(string name, string description, int width, int height, int level) : BaseEntity(name, description)
     {
         public int Level { get; set; } = level;
         public Size Size { get; set; } = new Size(width, height);
