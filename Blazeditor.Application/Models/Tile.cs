@@ -1,12 +1,17 @@
 namespace Blazeditor.Application.Models
 {
-    public class Tile(string name, string description, string type, string imageBase64, Size size) : BaseEntity(name, description)
+    public class Tile : BaseEntity
     {
-        public string Type { get; set; } = type;
-        public string Image { get; set; } = imageBase64;
-        public Size Size { get; set; } = size;
-
-        // represents the tile's layout and state in the palette
+        public Tile() : base() { }
+        public Tile(string name, string description, string type, string imageBase64, Size size) : base(name, description)
+        {
+            Type = type;
+            Image = imageBase64;
+            Size = size;
+        }
+        public string Type { get; set; } = string.Empty;
+        public string Image { get; set; } = string.Empty;
+        public Size Size { get; set; } = new Size(1, 1);
         public TileState PaletteState { get; set; }
     }
 

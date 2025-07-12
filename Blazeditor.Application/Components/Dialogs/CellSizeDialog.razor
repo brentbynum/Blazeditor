@@ -1,0 +1,43 @@
+@using Microsoft.AspNetCore.Components
+
+<div class="modal-backdrop show" style="z-index: 1050;"></div>
+<div class="modal d-block" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <EditForm Model="cellSizeModel" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <div class="mb-2">
+                    <label>Cell Width</label>
+                    <InputNumber class="form-control" @bind-Value="cellSizeModel.Width" />
+                </div>
+                <div class="mb-2">
+                    <label>Cell Height</label>
+                    <InputNumber class="form-control" @bind-Value="cellSizeModel.Height" />
+                </div>
+                <button class="btn btn-primary" type="submit">OK</button>
+                <button class="btn btn-secondary ms-2" type="button" @onclick="OnCancel">Cancel</button>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    private CellSizeModel cellSizeModel = new() { Width = 64, Height = 64 };
+    [Parameter] public EventCallback<CellSizeModel> OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancelClicked { get; set; }
+
+    private async Task HandleValidSubmit()
+    {
+        await OnConfirm.InvokeAsync(cellSizeModel);
+    }
+    private async Task OnCancel()
+    {
+        await OnCancelClicked.InvokeAsync();
+    }
+    public class CellSizeModel
+    {
+        public int Width { get; set; } = 64;
+        public int Height { get; set; } = 64;
+    }
+}

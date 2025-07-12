@@ -1,7 +1,41 @@
 ﻿@page "/"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components
+@using Blazeditor.Application.Components.Dialogs
+@using Blazeditor.Application.Services
+@inject DefinitionManager Definition
+@inject NavigationManager Navigation
+@attribute [Authorize]
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<CascadingAuthenticationState>
+    <AuthorizeView>
+        <Authorized>
+            <h1>Hello, @context.User.Identity?.Name!</h1>
+            <button class="btn btn-success mb-2" @onclick="ShowCreateAreaDialog">Create Area</button>
+            @if (showCreateAreaDialog)
+            {
+                <CreateAreaDialog OnCreate="HandleCreateArea" OnCancelClicked="HideCreateAreaDialog" />
+            }
+        </Authorized>
+        <NotAuthorized>
+            <h1>Hello!</h1>
+        </NotAuthorized>
+    </AuthorizeView>
+</CascadingAuthenticationState>
 
-Welcome to your new app.
+@code {
+    private bool showCreateAreaDialog = false;
+    private void ShowCreateAreaDialog() => showCreateAreaDialog = true;
+    private void HideCreateAreaDialog() => showCreateAreaDialog = false;
+
+    private void HandleCreateArea(CreateAreaDialog.AreaModel model)
+    {
+        var area = Definition.AddArea(model.Name, model.Description, model.Width, model.Height);
+        showCreateAreaDialog = false;
+        Navigation.NavigateTo($"/area/{area.Id}");
+    }
+}
+

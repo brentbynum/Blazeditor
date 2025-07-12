@@ -1,0 +1,45 @@
+@using Microsoft.AspNetCore.Components
+<EditForm Model="areaModel" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-2">
+        <label>Name</label>
+        <InputText class="form-control" @bind-Value="areaModel.Name" />
+    </div>
+    <div class="mb-2">
+        <label>Description</label>
+        <InputText class="form-control" @bind-Value="areaModel.Description" />
+    </div>
+    <div class="mb-2">
+        <label>Width</label>
+        <InputNumber class="form-control" @bind-Value="areaModel.Width" />
+    </div>
+    <div class="mb-2">
+        <label>Height</label>
+        <InputNumber class="form-control" @bind-Value="areaModel.Height" />
+    </div>
+    <button class="btn btn-primary" type="submit">Create Area</button>
+    <button class="btn btn-secondary ms-2" type="button" @onclick="OnCancel">Cancel</button>
+</EditForm>
+
+@code {
+    private AreaModel areaModel = new();
+    [Parameter] public EventCallback<AreaModel> OnCreate { get; set; }
+    [Parameter] public EventCallback OnCancelClicked { get; set; }
+
+    private async Task HandleValidSubmit()
+    {
+        await OnCreate.InvokeAsync(areaModel);
+    }
+    private async Task OnCancel()
+    {
+        await OnCancelClicked.InvokeAsync();
+    }
+    public class AreaModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+}

@@ -1,8 +1,10 @@
 namespace Blazeditor.Application.Models
 {
-    public class Area(string name, string description) : BaseEntity(name, description)
+    public class Area : BaseEntity
     {
-        public  List<Tile> TilePalette { get; set; } = [];
-        public Dictionary<int, TileMap> TileMaps { get; set; } = [];
+        public Area() : base() { }
+        public Area(string name, string description) : base(name, description) { }
+        public List<Tile> TilePalette { get; set; } = new();
+        public Dictionary<int, TileMap> TileMaps { get; set; } = new();
     }
 }

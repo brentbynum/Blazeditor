@@ -10,7 +10,15 @@
         window.tilePaletteCanvas.drawTiles();
         window.requestAnimationFrame(renderLoop);
     }
-
+    function getScaledMousePosition(e) {
+        if (!paletteCanvas) return { x: 0, y: 0 };
+        const rect = paletteCanvas.getBoundingClientRect();
+        const scaleX = paletteCanvas.width / rect.width;
+        const scaleY = paletteCanvas.height / rect.height;
+        const mouseX = (e.clientX - rect.left) * scaleX;
+        const mouseY = (e.clientY - rect.top) * scaleY;
+        return { x: mouseX, y: mouseY };
+    }
     window.tilePaletteCanvas = {
         init: function (canvas, tiles, cellSizeArg) {
             paletteCanvas = canvas;
@@ -43,14 +51,11 @@
         mousemove: function (e) {
             if (!paletteTiles || paletteTiles.length === 0) return;
             const rect = paletteCanvas.getBoundingClientRect();
-            const scaleX = paletteCanvas.width / rect.width;
-            const scaleY = paletteCanvas.height / rect.height;
-            const mouseX = (e.clientX - rect.left) * scaleX;
-            const mouseY = (e.clientY - rect.top) * scaleY;
+            const pos = getScaledMousePosition(e);
             for (let tile of paletteTiles) {
                 if (tile.paletteState && tile.paletteState.layout) {
                     const l = tile.paletteState.layout;
-                    tile.paletteState.isMouseOver = mouseX >= l.x && mouseX <= l.x + l.width && mouseY >= l.y && mouseY <= l.y + l.height;
+                    tile.paletteState.isMouseOver = pos.x >= l.x && pos.x <= l.x + l.width && pos.y >= l.y && pos.y <= l.y + l.height;
                 } else if (tile.paletteState) {
                     tile.paletteState.isMouseOver = false;
                 }
@@ -58,16 +63,12 @@
         },
         click: function (e) {
             if (!paletteTiles || paletteTiles.length === 0) return;
-            const rect = paletteCanvas.getBoundingClientRect();
-            const scaleX = paletteCanvas.width / rect.width;
-            const scaleY = paletteCanvas.height / rect.height;
-            const mouseX = (e.clientX - rect.left) * scaleX;
-            const mouseY = (e.clientY - rect.top) * scaleY;
+            const pos = getScaledMousePosition(e);
             let selectedTileId = null;
             for (let tile of paletteTiles) {
                 if (tile.paletteState && tile.paletteState.layout) {
                     const l = tile.paletteState.layout;
-                    const isClicked = mouseX >= l.x && mouseX <= l.x + l.width && mouseY >= l.y && mouseY <= l.y + l.height;
+                    const isClicked = pos.x >= l.x && pos.x <= l.x + l.width && pos.y >= l.y && pos.y <= l.y + l.height;
                     tile.paletteState.isSelected = isClicked;
                     if (isClicked) {
                         selectedTileId = tile.id;
@@ -84,9 +85,8 @@
         drawTiles: function () {
             paletteContext.clearRect(0, 0, paletteCanvas.width, paletteCanvas.height);
             if (!paletteTiles) return;
-            let maxTiles = 100;
             let bin = new MaxRectsBin(paletteCanvas.width, paletteCanvas.height);
-            for (let i = 0; i < paletteTiles.length && i < maxTiles; i++) {
+            for (let i = 0; i < paletteTiles.length; i++) {
                 const tile = paletteTiles[i];
                 let w = tile.size.width * cellSize;
                 let h = tile.size.height * cellSize;
@@ -110,6 +110,25 @@
                 paletteContext.font = '16px sans-serif';
                 paletteContext.fillText(tile.name || 'Tile', pos.x + 8, pos.y + 32);
             }
+        },
+        calculateRequiredHeight: function (tiles, cellSizeArg, canvasWidth) {
+            let cellSize = cellSizeArg || 64;
+            // Use a bin packer to simulate placement and get the max Y
+            let bin = new MaxRectsBin(canvasWidth, 100000); // Large height
+            let maxY = 0;
+            for (let i = 0; i < tiles.length; i++) {
+                let w = tiles[i].size.width * cellSize;
+                let h = tiles[i].size.height * cellSize;
+                let pos = bin.insert(w, h);
+                if (pos) {
+                    maxY = Math.max(maxY, pos.y + h);
+                }
+            }
+            // Add a little padding
+            return Math.ceil(maxY + 8);
+        },
+        setCanvasHeight: function (canvas, height) {
+            canvas.height = height;
         },
         startRenderLoop: function () {
             running = true;

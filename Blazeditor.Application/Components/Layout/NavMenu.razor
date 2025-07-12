@@ -20,3 +20,18 @@
         }
     </div>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Definition.OnChanged += HandleDefinitionChanged;
+    }
+    private void HandleDefinitionChanged(Definition definition)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+    public void Dispose()
+    {
+        Definition.OnChanged -= HandleDefinitionChanged;
+    }
+}

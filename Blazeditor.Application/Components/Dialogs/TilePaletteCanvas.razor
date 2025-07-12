@@ -1,7 +1,9 @@
 @using Blazeditor.Application.Models
 @inject IJSRuntime JS
 
-<canvas @ref="canvasRef" width="512" height="1024" style="border:1px solid #ccc; background:#f8f9fa; width:100%;"></canvas>
+<div style="height: 400px; overflow-y: auto; border:1px solid #ccc; background:#f8f9fa;">
+    <canvas @ref="canvasRef" width="512" style="width:100%; display:block;"></canvas>
+</div>
 
 @code {
     private ElementReference canvasRef;
@@ -12,9 +14,11 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        // Redraw the canvas when Tiles changes
         if (Tiles != null && Tiles.Count > 0)
         {
+            // Ask JS to calculate and set the required canvas height
+            var height = await JS.InvokeAsync<int>("tilePaletteCanvas.calculateRequiredHeight", Tiles, CellSize, 512);
+            await JS.InvokeVoidAsync("tilePaletteCanvas.setCanvasHeight", canvasRef, height);
             await JS.InvokeVoidAsync("tilePaletteCanvas.init", canvasRef, Tiles, CellSize);
         }
     }
@@ -32,6 +36,5 @@
     public async Task OnJsTileSelected(int tileId)
     {
         await OnTileSelected.InvokeAsync(tileId);
-        // Optionally update local state here
     }
 }

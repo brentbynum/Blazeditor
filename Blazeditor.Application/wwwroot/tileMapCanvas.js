@@ -13,6 +13,7 @@
     const minScale = 0.2;
     const maxScale = 4;
     let selectedCells = [];
+    let tilePalette = [];
 
     function cellsEqual(a, b) {
         return a.x === b.x && a.y === b.y && a.level === b.level;
@@ -34,15 +35,40 @@
         return cells;
     }
 
+    // Add a global object for profiling
+    window.tileMapPaintProfile = {};
+
     let tools = {
-        paint: {
-            cursor: "url('/cursors/paint.png'), auto",
-            click: (x, y, level) => {
-                if (dotNetRef && selectedTileId !== null) {
-                    dotNetRef.invokeMethodAsync('OnJsPlaceTile', selectedTileId, x, y, level);
+        paint: (function () {
+            return {
+                cursor: "url('/cursors/paint.png'), auto",
+                click: (x, y, level) => {
+                    if (dotNetRef && selectedTileId !== null) {
+                        window.tileMapPaintProfile.start = performance.now();
+                        dotNetRef.invokeMethodAsync('OnJsPlaceTile', selectedTileId, x, y, level);
+                    }
+                },
+                drawOverlay: (ctx, x, y, level) => {
+                    if (selectedTileId !== null && tilePalette && tilePalette.length > 0) {
+                        const tile = tilePalette.find(t => t.id === selectedTileId);
+                        if (tile) {
+                            if (!tile._overlayImage) {
+                                let img = new window.Image();
+                                img.src = tile.image;
+                                img.onload = () => { tile._overlayImageLoaded = true; };
+                                tile._overlayImage = img;
+                            }
+                            if (tile._overlayImage && tile._overlayImageLoaded) {
+                                ctx.save();
+                                ctx.globalAlpha = 0.5;
+                                ctx.drawImage(tile._overlayImage, x * cellSize, y * cellSize, tile.size.width * cellSize, tile.size.height * cellSize);
+                                ctx.restore();
+                            }
+                        }
+                    }
                 }
             }
-        },
+        })(),
         select: {
             cursor: "url('/cursors/select.png'), auto",
             click: (x, y, level, e) => {
@@ -61,8 +87,11 @@
                         selectedCells.push(cell);
                     }
                 } else if (e && e.ctrlKey) {
-                    if (!cellInCollection(cell, selectedCells)) {
+                    const idx = selectedCells.findIndex(c => cellsEqual(c, cell));
+                    if (idx === -1) {
                         selectedCells.push(cell);
+                    } else {
+                        selectedCells.splice(idx, 1);
                     }
                 } else {
                     selectedCells = [cell];
@@ -90,7 +119,7 @@
                 }
             }
         },
-        pan: (function() {
+        pan: (function () {
             let panState = {
                 active: false,
                 mousePos: { x: 0, y: 0 }
@@ -152,7 +181,7 @@
     }
 
     window.tileMapCanvas = {
-        init: function (canvas, tileMapsArg, cellSizeArg) {
+        init: function (canvas, tileMapsArg, cellSizeArg, tilePaletteArg) {
             mapCanvas = canvas;
             ctx = mapCanvas.getContext('2d');
             mapCanvas.onmousemove = this.mousemove;
@@ -167,12 +196,28 @@
             if (cellSizeArg) {
                 cellSize = cellSizeArg;
             }
+            if (tilePaletteArg) {
+                tilePalette = tilePaletteArg;
+            }
             running = false;
             this.startRenderLoop();
         },
         updateTileMaps: function (val) {
             if (val) {
                 tileMaps = val;
+            }
+        },
+        updateTilePositions: function (positions) {
+            if (!positions) return;
+            if (positions.length) {
+                positions.forEach(pos => {
+                    let map = tileMaps[pos.level]
+                    map.tiles[pos.x + (pos.y * map.size.width)] = pos.tile;
+                });
+            } else {
+                let pos = positions;
+                let map = tileMaps[pos.level]
+                map.tiles[pos.x + (pos.y * map.size.width)] = pos.tile;
             }
         },
         setShowGrid: function (val) {
@@ -261,9 +306,9 @@
                             tile.layout = {
                                 image: img
                             }
-                            img.onload = () => { tile.layout.isLoaded = true;  }
+                            img.onload = () => { tile.layout.isLoaded = true; }
                         }
-                        if (tile && tile.image && tile.image.startsWith('data:image') && tile.layout.isLoaded) {                       
+                        if (tile && tile.image && tile.image.startsWith('data:image') && tile.layout.isLoaded) {
                             ctx.drawImage(tile.layout.image, x * cellSize, y * cellSize, tile.size.width * cellSize, tile.size.height * cellSize);
                         }
                     }
@@ -293,10 +338,19 @@
                                 ctx.restore();
                             }
                         }
+                        // Draw tile overlay for the hovered cell
+                        if (selectedTool.drawOverlay && x === hoveredCell.x && y === hoveredCell.y && parseInt(levelKey) === hoveredCell.level) {
+                            selectedTool.drawOverlay(ctx, x, y, hoveredCell.level);
+                        }
                     }
                 }
             }
             ctx.restore();
+        },
+        profilePaintEnd: function () {
+            window.tileMapPaintProfile.end = performance.now();
+            const duration = window.tileMapPaintProfile.end - window.tileMapPaintProfile.start;
+            console.log(`[Profile] Tile paint roundtrip: ${duration.toFixed(2)} ms`);
         },
         startRenderLoop: function () {
             running = true;
@@ -306,4 +360,6 @@
             running = false;
         }
     };
+
+
 })();
