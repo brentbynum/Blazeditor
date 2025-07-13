@@ -7,47 +7,58 @@ using System.Text.Json;
 
 namespace Blazeditor.Application.Components.Dialogs
 {
-    public partial class TileMapCanvas
+    public partial class TileMapCanvas : IDisposable
     {
-        [Parameter] public Area Area { get; set; } = new();
+        [Parameter] public Area? Area { get; set; } = new();
         [Parameter] public int SelectedTileId { get; set; }
+        [Parameter] public int ActiveLevel { get; set; }
         private ElementReference canvasRef;
         private DotNetObjectReference<TileMapCanvas>? dotNetRef;
-        private const int CellSize = 64;
         private string selectedTool = "paint"; // Default tool
         private List<Coordinate> SelectedCells { get; set; } = new();
 
-        protected override async Task OnParametersSetAsync()
+        private bool _shouldInitJs = false;
+        private bool _firstRenderDone = false;
+
+        protected override void OnParametersSet()
         {
-            // Redraw the canvas when Tiles changes
-            if (Area.TileMaps != null && Area.TileMaps.Count > 0 && canvasRef.Context != null)
-            {
-                await JS.InvokeVoidAsync("tileMapCanvas.init", canvasRef, Area.TileMaps, CellSize, Area.TilePalette);
-                await JS.InvokeVoidAsync("tileMapCanvas.setSelectedTileId", SelectedTileId);
-            }
+            // Set a flag to re-initialize JS after parameters change
+            _shouldInitJs = true;
         }
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             if (firstRender)
             {
-                dotNetRef = DotNetObjectReference.Create(this);
-                await JS.InvokeVoidAsync("tileMapCanvas.setDotNetRef", dotNetRef);
-
+                if (JS != null)
+                {
+                    dotNetRef = DotNetObjectReference.Create(this);
+                    await JS.InvokeVoidAsync("tileMapCanvas.setDotNetRef", dotNetRef);
+                }
+                _firstRenderDone = true;
+            }
+            if (_firstRenderDone && _shouldInitJs && Area != null && Area.TileMaps != null && Area.TilePalette != null && JS != null)
+            {
+                await JS.InvokeVoidAsync("tileMapCanvas.setSelectedTileId", SelectedTileId);
+                await JS.InvokeVoidAsync("tileMapCanvas.setActiveLevel", ActiveLevel);
+                await JS.InvokeVoidAsync("tileMapCanvas.init", canvasRef, Area.TileMaps, Area.CellSize, Area.Size, Area.TilePalette);
+                _shouldInitJs = false;
             }
         }
 
         public void ClearTileMaps()
         {
-            if (Area.TileMaps != null && Area.TileMaps.Count > 0)
+            if (Area?.TileMaps != null && Area.TileMaps.Count > 0)
             {
+                int width = Area.Size.Width;
+                int height = Area.Size.Height;
                 if (SelectedCells != null && SelectedCells.Count > 0)
                 {
                     foreach (var cell in SelectedCells)
                     {
                         if (Area.TileMaps.TryGetValue(cell.Level, out var map))
                         {
-                            if (cell.X >= 0 && cell.X < map.Size.Width && cell.Y >= 0 && cell.Y < map.Size.Height)
+                            if (cell.X >= 0 && cell.X < width && cell.Y >= 0 && cell.Y < height)
                             {
                                 map[cell.X, cell.Y] = null;
                             }
@@ -56,20 +67,24 @@ namespace Blazeditor.Application.Components.Dialogs
                 }
                 else
                 {
-                    foreach (var tileMap in Area.TileMaps.Values)
+                    if (Area.TileMaps.TryGetValue(ActiveLevel, out var tileMap))
                     {
-                        for (int y = 0; y < tileMap.Size.Height; y++)
+                        for (int y = 0; y < height; y++)
                         {
-                            for (int x = 0; x < tileMap.Size.Width; x++)
+                            for (int x = 0; x < width; x++)
                             {
                                 tileMap[x, y] = null;
                             }
                         }
                     }
                 }
-  
-                InvokeAsync(() => {
-                    JS.InvokeVoidAsync("tileMapCanvas.updateTileMaps", Area.TileMaps);
+
+                InvokeAsync(() =>
+                {
+                    if (JS != null)
+                    {
+                        JS.InvokeVoidAsync("tileMapCanvas.updateTileMaps", Area.TileMaps);
+                    }
                     StateHasChanged();
                 });
             }
@@ -77,7 +92,7 @@ namespace Blazeditor.Application.Components.Dialogs
 
         public async Task SetShowGrid(ChangeEventArgs e)
         {
-            if (e.Value is bool showGrid)
+            if (e.Value is bool showGrid && JS != null)
             {
                 await JS.InvokeVoidAsync("tileMapCanvas.setShowGrid", showGrid);
             }
@@ -86,43 +101,78 @@ namespace Blazeditor.Application.Components.Dialogs
         [JSInvokable]
         public void OnJsPlaceTile(int tileId, int x, int y, int level)
         {
-            var areaId = Area.Id;
-            var tile = Area.TilePalette.FirstOrDefault(t => t.Id == tileId);
-            Definition.ExecuteTileEdit(areaId, level, x, y, tile);
-            InvokeAsync(() => {
-                var updates = new[] { new { x, y, level, tile } };
-                JS.InvokeVoidAsync("tileMapCanvas.updateTilePositions", updates);  
-                JS.InvokeVoidAsync("tileMapCanvas.profilePaintEnd");
-                StateHasChanged();
-            });
+            var areaId = Area?.Id;
+            if (areaId.HasValue && Area?.TilePalette != null && Area.TilePalette.ContainsKey(tileId))
+            {
+                var tile = Area.TilePalette[tileId];
+                if (tile == null)
+                    return;
+                Definition.ExecuteTileEdit(areaId.Value, level, x, y, tile);
+                InvokeAsync(() =>
+                {
+                    if (JS != null)
+                    {
+                        var updates = new[] { new { x, y, level, tile } };
+                        JS.InvokeVoidAsync("tileMapCanvas.updateTilePositions", updates);
+                    }
+                    StateHasChanged();
+                });
+            }
         }
 
         [JSInvokable]
         public void OnJsFill(int tileId, int x, int y, int level, bool ctrlKey)
         {
             var updates = new List<object>();
-            if (Area.TilePalette.FirstOrDefault(t => t.Id == tileId) == null)
+            if (Area?.TilePalette == null || !Area.TilePalette.ContainsKey(tileId))
                 return;
-            if (SelectedCells != null && SelectedCells.Count > 0)
+            int width = Area.Size.Width;
+            int height = Area.Size.Height;
+            if (Area.TileMaps != null && Area.TileMaps.TryGetValue(level, out var map))
             {
-                foreach (var cell in SelectedCells)
+                if (SelectedCells != null && SelectedCells.Count > 0)
                 {
-                    if (Area.TileMaps.TryGetValue(cell.Level, out var map))
+                    foreach (var cell in SelectedCells)
                     {
-                        if (cell.X >= 0 && cell.X < map.Size.Width && cell.Y >= 0 && cell.Y < map.Size.Height)
+                        if (cell.X >= 0 && cell.X < width && cell.Y >= 0 && cell.Y < height)
                         {
                             var oldTile = map[cell.X, cell.Y];
                             if (ctrlKey && oldTile != null)
                                 continue; // Only fill if cell is empty
-                            var tile = Area.TilePalette.FirstOrDefault(t => t.Id == tileId);
+                            var tile = Area.TilePalette[tileId];
                             map[cell.X, cell.Y] = tile;
-                            updates.Add(new { x = cell.X, y = cell.Y, level = cell.Level, tile });
+                            updates.Add(new { x = cell.X, y = cell.Y, level, tile });
+                        }
+                    }
+                }
+                else
+                {
+                    if (x >= 0 && x < width && y >= 0 && y < height)
+                    {
+                        for (var ty = 0; ty < height; ty++)
+                        {
+                            for (var tx = 0; tx < width; tx++)
+                            {
+                                var oldTile = map[tx, ty];
+                                if (ctrlKey && oldTile != null)
+                                    return; // Only fill if cell is empty
+                                if (oldTile?.Id != tileId)
+                                {
+                                    var tile = Area.TilePalette[tileId];
+                                    map[tx, ty] = tile;
+                                    updates.Add(new { tx, ty, level, tileId });
+                                }
+                            }
                         }
                     }
                 }
             }
-            InvokeAsync(() => {
-                JS.InvokeVoidAsync("tileMapCanvas.updateTilePositions", updates);
+            InvokeAsync(() =>
+            {
+                if (JS != null)
+                {
+                    JS.InvokeVoidAsync("tileMapCanvas.updateTilePositions", updates);
+                }
                 StateHasChanged();
             });
         }
@@ -130,13 +180,17 @@ namespace Blazeditor.Application.Components.Dialogs
         [JSInvokable]
         public void OnJsRemoveTile(int x, int y, int level)
         {
-            if (Area.TileMaps.TryGetValue(level, out var map))
+            if (Area != null && Area.TileMaps != null && Area.TileMaps.TryGetValue(level, out var map))
             {
                 map[x, y] = null;
                 map.Tiles = map.Tiles.ToArray();
-                InvokeAsync(() => {
-                    var updates = new[] { new { x, y, level } };
-                    JS.InvokeVoidAsync("tileMapCanvas.updateTilePositions", updates);
+                InvokeAsync(() =>
+                {
+                    if (JS != null)
+                    {
+                        var updates = new[] { new { x, y, level } };
+                        JS.InvokeVoidAsync("tileMapCanvas.updateTilePositions", updates);
+                    }
                     StateHasChanged();
                 });
             }
@@ -159,11 +213,20 @@ namespace Blazeditor.Application.Components.Dialogs
 
         private async Task SelectTool(string tool)
         {
-            if (selectedTool != tool)
+            if (selectedTool != tool && JS != null)
             {
                 selectedTool = tool;
                 await JS.InvokeVoidAsync("tileMapCanvas.selectTool", tool);
             }
+        }
+        public void Dispose()
+        {
+            if (dotNetRef != null)
+            {
+                dotNetRef.Dispose();
+                dotNetRef = null;
+            }
+            GC.SuppressFinalize(this);
         }
     }
 }

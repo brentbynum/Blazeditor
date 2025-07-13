@@ -1,15 +1,11 @@
-﻿using Blazeditor.Application.Components.Pages;
-using Blazeditor.Application.Models;
+﻿using Blazeditor.Application.Models;
 using System.Text.Json;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Formats.Png;
-using System.Collections.Generic;
 using LiteDB;
-using System.Security.Claims;
-using System.Threading.Tasks;
-using Blazeditor.Application.Components;
+
 using Size = Blazeditor.Application.Models.Size;
 
 namespace Blazeditor.Application.Services
@@ -22,6 +18,7 @@ namespace Blazeditor.Application.Services
         private Definition _definition = new Definition();
         public Area? SelectedArea { get; set; }
 
+        public event Action<Definition>? OnChanged;
         // --- Undo/Redo for Tile Edits ---
         private class TileEditUndo
         {
@@ -145,23 +142,30 @@ namespace Blazeditor.Application.Services
             return _definition.Areas.Values;
         }
 
-        public Area AddArea(string name, string description)
+        public Area AddArea(string name, string description, Size areaSize, int cellSize = 64)
         {
-            var area = new Area(name, description);
+            var area = new Area(name, description, areaSize, cellSize);
             _definition.Areas[area.Id] = area;
             OnChanged?.Invoke(_definition);
             MarkDirty();
             return area;
         }
 
-        public Area AddArea(string name, string description, int width, int height)
+        public Area AddArea(string name, string description, int width, int height, int cellSize = 64)
         {
-            var area = new Area(name, description);
-            area.TileMaps[0] = new TileMap("Default", $"{name} map", width, height, 0);
+            var area = new Area(name, description, new Size(width, height), cellSize);
+            area.TileMaps[0] = new TileMap("Default", $"{name} map", 0, area.Size);
             _definition.Areas[area.Id] = area;
             OnChanged?.Invoke(_definition);
             MarkDirty();
             return area;
+        }
+
+        public void RemoveArea(int areaId)
+        {
+            _definition.Areas.Remove(areaId);
+            OnChanged?.Invoke(_definition);
+            MarkDirty();
         }
 
         public List<string?> GetTileImageFilenames()
@@ -170,7 +174,7 @@ namespace Blazeditor.Application.Services
             var filenames = new HashSet<string?>();
             foreach (var area in _definition.Areas.Values)
             {
-                foreach (var tile in area.TilePalette)
+                foreach (var tile in area.TilePalette.Values)
                 {
                     if (!string.IsNullOrEmpty(tile.Image))
                         filenames.Add(tile.Image);
@@ -179,7 +183,7 @@ namespace Blazeditor.Application.Services
             return filenames.ToList();
         }
 
-        public List<Tile> ExtractTilesFromImage(string filename)
+        public Dictionary<int, Tile> ExtractTilesFromImage(string filename)
         {
             if (string.IsNullOrWhiteSpace(filename)) throw new ArgumentException("Filename cannot be null or empty.", nameof(filename));
             var baseName = System.IO.Path.GetFileNameWithoutExtension(filename);
@@ -199,7 +203,7 @@ namespace Blazeditor.Application.Services
                 Height = cellSizeVal
             };
 
-            var result = new List<Tile>();
+            var result = new Dictionary<int, Tile>();
             using (var image = Image.Load<Rgba32>(imagePath))
             {
                 foreach (var tileElem in tiles.EnumerateArray())
@@ -224,18 +228,19 @@ namespace Blazeditor.Application.Services
                         tileImg.Save(ms, new PngEncoder());
                         var base64 = Convert.ToBase64String(ms.ToArray());
                         var base64Url = $"data:image/png;base64,{base64}";
-                        result.Add(new Tile(name, description, "default", base64Url, new Size(w, h)));
+                        var tile = new Tile(name, description, "default", base64Url, new Size(w, h));
+                        result.Add(tile.Id, tile);
                     }
                 }
             }
             return result;
         }
 
-        public List<Tile> AddTilePaletteToArea(Area area, string filename, int cellWidth = 64, int cellHeight = 64)
+        public async Task<Dictionary<int, Tile>> AddTilePaletteToArea(Area area, string filename, int cellWidth = 64, int cellHeight = 64)
         {
             var baseName = System.IO.Path.GetFileNameWithoutExtension(filename);
             var jsonPath = System.IO.Path.Combine("wwwroot", "tilesets", baseName + ".json");
-            List<Tile> tiles;
+            Dictionary<int, Tile> tiles = new Dictionary<int, Tile>();
             if (System.IO.File.Exists(jsonPath))
             {
                 tiles = ExtractTilesFromImage(filename);
@@ -251,16 +256,24 @@ namespace Blazeditor.Application.Services
                 image.Save(ms, new PngEncoder());
                 var base64 = $"data:image/png;base64,{Convert.ToBase64String(ms.ToArray())}";
                 var tile = new Tile(baseName, $"Imported from {filename}", "default", base64, new Size(cellWidth, cellHeight));
-                tiles = new List<Tile> { tile };
+                tiles = new Dictionary<int, Tile>
+                {
+                    { tile.Id, tile }
+                };
             }
-            area.TilePalette.AddRange(tiles);
-            MarkDirty();
+            foreach (var tile in tiles.Values)
+            {
+                if (area.TilePalette.ContainsKey(tile.Id))
+                {
+                    // If tile already exists, skip it
+                    continue;
+                }
+                area.TilePalette[tile.Id] = tile;
+            }
+            await SaveAsync();
             OnChanged?.Invoke(_definition);
             return tiles;
         }
-
-        public event Action<Definition>? OnChanged;
-        private void NotifyChanged() => OnChanged?.Invoke(_definition);
 
         public void Dispose()
         {

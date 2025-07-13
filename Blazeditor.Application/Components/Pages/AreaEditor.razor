@@ -9,35 +9,30 @@
 @inject IJSRuntime JS
 
 <h1>@Area?.Name</h1>
-<ImportTilePalette @ref="popupRef" OnConfirm="HandleInput" />
-
-<button class="btn btn-success mb-2" @onclick="ShowCreateAreaDialog">Create Area</button>
-
-@if (showCreateAreaDialog)
-{
-    <CreateAreaDialog OnCreate="HandleCreateArea" OnCancelClicked="HideCreateAreaDialog" />
-}
-
-<div class="container">
+<div class="container-fluid">
     <div class="row">
-        <div class="col-4 border rounded p-2 canvas-container">
-            <div id="paletteHeader">
-                <div><h3>Tile Palette</h3></div>
-                <div @onclick="ShowImportTilePalette" class="btn btn-outline-secondary"><i class="bi bi-box-arrow-in-down"></i></div>
-            </div>
+        <div class="col-8">
+
             @if (Area != null)
             {
-                <TilePaletteCanvas Tiles="Area.TilePalette ?? new List<Tile>()" OnTileSelected="OnTileSelected" />
+                <TileMapCanvas Area="@Area" SelectedTileId="@(SelectedTile != null ? SelectedTile.Id : -1)" ActiveLevel="@ActiveLevel" />
             }
-            @if(SelectedTile != null)
+
+        </div>
+        <div class="col-4 border rounded p-2 canvas-container">
+
+            @if (Area != null)
             {
-                <h3>@SelectedTile.Name</h3>
-                <img src="@SelectedTile.Image" />
+                <TilePaletteCanvas Area="@Area" OnTileSelected="OnTileSelected" OnPaletteImport="OnPaletteImport" />
+                <MapLevelSelector Levels="Area.TileMaps" ActiveLevel="@ActiveLevel" OnLevelSelected="OnLevelSelected" OnRemoveLevel="OnRemoveLevel" OnAddLevel="OnAddLevel" />
+                @if (SelectedTile != null)
+                {
+                    <h3>@SelectedTile.Name</h3>
+                    <img src="@SelectedTile.Image" />
+                }
             }
         </div>
-        <div class="col-8">
-            <TileMapCanvas Area="@Area" SelectedTileId="@(SelectedTile != null ? SelectedTile.Id : -1)" />
-        </div>
+
     </div>
 </div>
 

@@ -3,6 +3,7 @@
     let ctx;
     let tileMaps = {};
     let cellSize = 64;
+    let mapSize = { width: 1, height: 1 }; // Store area size (in cells)
     let running = false;
     let hoveredCell = { x: -1, y: -1, level: 0 };
     let selectedTileId = null;
@@ -14,7 +15,7 @@
     const maxScale = 4;
     let selectedCells = [];
     let tilePalette = [];
-
+    let activeLevel = 0;
     function cellsEqual(a, b) {
         return a.x === b.x && a.y === b.y && a.level === b.level;
     }
@@ -35,16 +36,12 @@
         return cells;
     }
 
-    // Add a global object for profiling
-    window.tileMapPaintProfile = {};
-
     let tools = {
         paint: (function () {
             return {
                 cursor: "url('/cursors/paint.png'), auto",
                 click: (x, y, level) => {
                     if (dotNetRef && selectedTileId !== null) {
-                        window.tileMapPaintProfile.start = performance.now();
                         dotNetRef.invokeMethodAsync('OnJsPlaceTile', selectedTileId, x, y, level);
                     }
                 },
@@ -162,6 +159,7 @@
         return { x: mouseX, y: mouseY };
     }
     function handleWheel(e) {
+        e.preventDefault(); // Prevent page scroll when zooming on canvas
         var pos = getScaledMousePosition(e);
         // Mouse position in world coords before zoom
         const worldX = origin.x + pos.x / scale;
@@ -181,7 +179,7 @@
     }
 
     window.tileMapCanvas = {
-        init: function (canvas, tileMapsArg, cellSizeArg, tilePaletteArg) {
+        init: function (canvas, tileMapsArg, cellSizeArg, mapSizeArg, tilePaletteArg) {
             mapCanvas = canvas;
             ctx = mapCanvas.getContext('2d');
             mapCanvas.onmousemove = this.mousemove;
@@ -196,6 +194,9 @@
             if (cellSizeArg) {
                 cellSize = cellSizeArg;
             }
+            if (mapSizeArg) {
+                mapSize = mapSizeArg;
+            }
             if (tilePaletteArg) {
                 tilePalette = tilePaletteArg;
             }
@@ -207,21 +208,30 @@
                 tileMaps = val;
             }
         },
+        updateTilePalette: function (val) {
+            if (val) {
+                tilePalette = val;
+            }
+        },
         updateTilePositions: function (positions) {
             if (!positions) return;
             if (positions.length) {
                 positions.forEach(pos => {
                     let map = tileMaps[pos.level]
-                    map.tiles[pos.x + (pos.y * map.size.width)] = pos.tile;
+                    map.tiles[pos.x + (pos.y * mapSize.width)] = tilePalette[pos.tileId];
                 });
             } else {
                 let pos = positions;
                 let map = tileMaps[pos.level]
-                map.tiles[pos.x + (pos.y * map.size.width)] = pos.tile;
+                map.tiles[pos.x + (pos.y * mapSize.width)] = pos.tile;
             }
         },
         setShowGrid: function (val) {
             showGrid = val;
+        },
+        setActiveLevel: function (level) {
+            activeLevel = level;
+            hoveredCell.level = level; // Update hovered cell level
         },
         selectTool(toolId) {
             selectedTool = tools[toolId] || tools.paint;
@@ -258,7 +268,7 @@
             const worldY = origin.y + pos.y / scale;
             hoveredCell.x = Math.floor(worldX / cellSize);
             hoveredCell.y = Math.floor(worldY / cellSize);
-            hoveredCell.level = 0; // For now, always use level 0
+            hoveredCell.level = activeLevel; // For now, always use level 0
 
             if (selectedTool.mousemove) {
                 selectedTool.mousemove(pos);
@@ -271,9 +281,8 @@
             const worldY = origin.y + pos.y / scale;
             const x = Math.floor(worldX / cellSize);
             const y = Math.floor(worldY / cellSize);
-            const level = 0; // For now, always use level 0
             if (selectedTool.click) {
-                selectedTool.click(x, y, level, e);
+                selectedTool.click(x, y, activeLevel, e);
             }
         },
         drawTiles: function () {
@@ -296,9 +305,9 @@
             // Draw tiles
             for (let levelKey of Object.keys(tileMaps)) {
                 const tileMap = tileMaps[levelKey];
-                for (let y = 0; y < tileMap.size.height; y++) {
-                    for (let x = 0; x < tileMap.size.width; x++) {
-                        const idx = y * tileMap.size.width + x;
+                for (let y = 0; y < mapSize.height; y++) {
+                    for (let x = 0; x < mapSize.width; x++) {
+                        const idx = y * mapSize.width + x;
                         const tile = tileMap.tiles ? tileMap.tiles[idx] : null;
                         if (tile && !tile.layout) {
                             let img = new window.Image();
@@ -316,14 +325,13 @@
             }
             // Draw grid and hovered cell
             for (let levelKey of Object.keys(tileMaps)) {
-                const tileMap = tileMaps[levelKey];
-                for (let y = 0; y < tileMap.size.height; y++) {
-                    for (let x = 0; x < tileMap.size.width; x++) {
+                for (let y = 0; y < mapSize.height; y++) {
+                    for (let x = 0; x < mapSize.width; x++) {
                         // Draw a border around the whole grid
                         ctx.save();
                         ctx.strokeStyle = '#000';
                         ctx.lineWidth = 3;
-                        ctx.strokeRect(0, 0, tileMap.size.width * cellSize, tileMap.size.height * cellSize);
+                        ctx.strokeRect(0, 0, mapSize.width * cellSize, mapSize.height * cellSize);
                         ctx.restore();
                         if (showGrid) {
                             // Draw grid
@@ -347,11 +355,6 @@
             }
             ctx.restore();
         },
-        profilePaintEnd: function () {
-            window.tileMapPaintProfile.end = performance.now();
-            const duration = window.tileMapPaintProfile.end - window.tileMapPaintProfile.start;
-            console.log(`[Profile] Tile paint roundtrip: ${duration.toFixed(2)} ms`);
-        },
         startRenderLoop: function () {
             running = true;
             renderLoop();
@@ -360,6 +363,4 @@
             running = false;
         }
     };
-
-
 })();

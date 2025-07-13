@@ -3,6 +3,7 @@
 @using Blazeditor.Application.Services
 @using Blazeditor.Application.Models
 @using Blazeditor.Application.Components.Dialogs
+@using SixLabors.ImageSharp
 @inject DefinitionManager Definition
 
 <style>
@@ -19,10 +20,9 @@
     private string ModalClass => IsVisible ? "show" : "hide";
 
     [Parameter] public EventCallback<(string, int, int)> OnConfirm { get; set; }
+    [Parameter] public int CellSize { get; set; } = 64;
 
     private bool IsVisible { get; set; }
-    private bool ShowCellSizeDialog { get; set; } = false;
-    private string? PendingFilename;
 
     protected override void OnInitialized()
     {
@@ -43,36 +43,22 @@
 
     private void Confirm()
     {
+        int cellHeight = 64, cellWidth = 64;
         if (SelectedFilename != null && !HasJsonForImage(SelectedFilename))
         {
-            // Prompt for cell size if no JSON
-            PendingFilename = SelectedFilename;
-            ShowCellSizeDialog = true;
+
         }
         else if (SelectedFilename != null)
         {
             // Use JSON for slicing
-            var (cellWidth, cellHeight) = GetCellSizeFromJson(SelectedFilename);
-            OnConfirm.InvokeAsync((SelectedFilename, cellWidth, cellHeight));
-            Close();
-        }
-    }
+            (cellWidth, cellHeight) = GetCellSizeFromJson(SelectedFilename);
 
-    private void OnCellSizeConfirmed(CellSizeDialog.CellSizeModel model)
-    {
-        if (PendingFilename != null)
-        {
-            OnConfirm.InvokeAsync((PendingFilename, model.Width, model.Height));
-            PendingFilename = null;
         }
-        ShowCellSizeDialog = false;
+        OnConfirm.InvokeAsync((SelectedFilename ?? "", cellWidth, cellHeight));
         Close();
     }
-    private void OnCellSizeCancel()
-    {
-        ShowCellSizeDialog = false;
-        PendingFilename = null;
-    }
+
+
 
     private void Close()
     {
@@ -87,6 +73,22 @@
     private string GetImageUrl(string filename)
     {
         return $"tilesets/{filename}";
+    }
+
+    private (int, int) CalculateCellSizeFromImage(string filename)
+    {
+        var imagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "tilesets", filename);
+        if (File.Exists(imagePath))
+        {
+            var image = Image.Load(imagePath);
+            if (image.Width % 64 != 0 || image.Height % 64 != 0)
+            {
+                // If not divisible by 64, return the actual size
+                return (1, 1);
+            }
+            return (image.Width/CellSize, image.Height/CellSize);
+        }
+        return (64, 64); // Default cell size if image not found
     }
 
     private bool HasJsonForImage(string filename)
@@ -113,7 +115,7 @@
     }
 }
 
-<div class="modal @ModalClass @(ShowCellSizeDialog ? "import-tilepalette-blur" : null)" tabindex="-1" style="z-index: 1050;">
+<div class="modal @ModalClass" tabindex="-1" style="z-index: 1050;">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <h5 class="modal-header">Select an image file to extract into tiles.</h5>
@@ -156,10 +158,7 @@
         </div>
     </div>
 </div>
-@if (ShowCellSizeDialog)
-{
-    <CellSizeDialog OnConfirm="OnCellSizeConfirmed" OnCancelClicked="OnCellSizeCancel" />
-}
+
 
 
 

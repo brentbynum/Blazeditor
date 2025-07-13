@@ -9,15 +9,11 @@ namespace Blazeditor.Application.Components.Pages
     {
         [Parameter]
         public int areaId { get; set; }
-        private ImportTilePalette? popupRef;
         public Tile? SelectedTile  { get; set; }
+        public int ActiveLevel { get; set; } = 0;
         public Area? Area { get; set; }
-        private DotNetObjectReference<AreaEditor>? objRef;
-        private bool showCreateAreaDialog = false;
         private DotNetObjectReference<AreaEditor>? dotNetRef;
         private int? previousAreaId = null;
-        private void ShowCreateAreaDialog() => showCreateAreaDialog = true;
-        private void HideCreateAreaDialog() => showCreateAreaDialog = false;
 
         protected override async Task OnParametersSetAsync()
         {
@@ -31,45 +27,46 @@ namespace Blazeditor.Application.Components.Pages
             Area = Definition.SelectedArea;
         }
 
-        protected override void OnInitialized()
+        public void OnTileSelected(int tileId)
         {
-            objRef = DotNetObjectReference.Create(this);
-            JS.InvokeVoidAsync("registerKeyboardEvents", objRef);
+            SelectedTile = Area?.TilePalette[tileId];
+            StateHasChanged();
         }
-
-        private void ShowImportTilePalette()
+        public void OnLevelSelected(int level)
         {
-            Console.WriteLine($"[DEBUG] ShowImportTilePalette called. popupRef is null: {popupRef is null}");
-            if (popupRef == null)
-            {
-                Console.WriteLine("[DEBUG] popupRef is null. ImportTilePalette component may not be rendered yet.");
-                return;
-            }
-            popupRef.Show();
-            Console.WriteLine("[DEBUG] popupRef.Show() called.");
+            ActiveLevel = level;
+            StateHasChanged();
         }
-
-        private void HandleInput((string selectedFilename, int cellWidth, int cellHeight) input)
+        public void OnAddLevel()
         {
             if (Area != null)
             {
-                Definition.AddTilePaletteToArea(Area, input.selectedFilename, input.cellWidth, input.cellHeight);
-                Area = Definition.GetAreas().FirstOrDefault(a => a.Id == areaId); 
+                int newLevel = Area.TileMaps.Count > 0 ? Area.TileMaps.Keys.Max() + 1 : 0;
+                Area.TileMaps[newLevel] = new TileMap($"Level {newLevel}", $"Tile map for level {newLevel}", newLevel, Area.Size);
+                ActiveLevel = newLevel;
                 StateHasChanged();
             }
         }
-
-        public void OnTileSelected(int tileId)
+        public void OnRemoveLevel()
         {
-            SelectedTile = Area?.TilePalette.FirstOrDefault(t => t.Id == tileId);
-            StateHasChanged();
+            if (Area != null && Area.TileMaps.Count > 1)
+            {
+                if (Area.TileMaps.TryGetValue(ActiveLevel, out var map))
+                {
+                    Area.TileMaps.Remove(ActiveLevel);
+                    ActiveLevel = Area.TileMaps.Keys.FirstOrDefault();
+                    StateHasChanged();
+                }
+            }
         }
-
-        private void HandleCreateArea(CreateAreaDialog.AreaModel model)
+        private async Task OnPaletteImport(PaletteImportEventArgs paletteImportEventArgs)
         {
-            Definition.AddArea(model.Name, model.Description, model.Width, model.Height);
-            showCreateAreaDialog = false;
-            StateHasChanged();
+            if (Area != null)
+            {
+                await Definition.AddTilePaletteToArea(Area, paletteImportEventArgs.FileName, paletteImportEventArgs.CellSize.Width, paletteImportEventArgs.CellSize.Height);
+                Area = Definition.GetAreas().FirstOrDefault(a => a.Id == areaId);
+                StateHasChanged();
+            }
         }
 
         [JSInvokable]
@@ -97,10 +94,10 @@ namespace Blazeditor.Application.Components.Pages
         }
         public void Dispose()
         {
-            if (objRef != null)
+            if (dotNetRef != null)
             {
-                JS.InvokeVoidAsync("unregisterKeyboardEvents", objRef);
-                objRef.Dispose();
+                JS.InvokeVoidAsync("areaEditorKeyboard.dispose");
+                dotNetRef.Dispose();
             }
         }
     }

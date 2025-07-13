@@ -10,8 +10,8 @@ namespace Blazeditor.Application.Models
             Destination = new Coordinate(destX, destY);
             Location = new Coordinate(locX, locY);
         }
-        public Area DestinationArea { get; set; }
-        public Area LocationArea { get; set; }
+        public Area? DestinationArea { get; set; }
+        public Area? LocationArea { get; set; }
         public Coordinate Destination { get; set; }
         public Coordinate Location { get; set; }
     }

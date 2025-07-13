@@ -4,23 +4,29 @@
 
 <div>
     <h3>Area Map</h3>
+    <div id="viewPrefs" class="mt-3" style="display:flex; align-items: center">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" checked id="viewGridChkBx" @onchange="@SetShowGrid">
+            <label class="form-check-label" for="viewGridChkBx">Show Grid</label>
+        </div>
+    </div>
     <div class="d-flex flex-row align-items-start">
         <!-- Vertical Toolbar -->
         <div id="mapEditorButtons" class="btn-toolbar flex-column me-3">
             <div id="toolButtons" class="btn-group-vertical mb-2">
-                <button class='btn btn-outline-secondary @(selectedTool == "select" ? "active" : "")' @onclick='() => SelectTool("select")'>
+                <button class='btn btn-outline-secondary @(selectedTool == "select" ? "active" : "")' type="button" title="Select" @onclick='() => SelectTool("select")'>
                     <i class="bi bi-cursor"></i>
                 </button>
-                <button class='btn btn-outline-secondary @(selectedTool == "paint" ? "active" : "")' @onclick='() => SelectTool("paint")'>
+                <button class='btn btn-outline-secondary @(selectedTool == "paint" ? "active" : "")' type="button" title="Paint" @onclick='() => SelectTool("paint")'>
                     <i class="bi bi-brush"></i>
                 </button>
-                <button class='btn btn-outline-secondary @(selectedTool == "fill" ? "active" : "")' @onclick='() => SelectTool("fill")'>
+                <button class='btn btn-outline-secondary @(selectedTool == "fill" ? "active" : "")' type="button" title="Fill" @onclick='() => SelectTool("fill")'>
                     <i class="bi bi-paint-bucket"></i>
                 </button>
-                <button class='btn btn-outline-secondary @(selectedTool == "erase" ? "active" : "")' @onclick='() => SelectTool("erase")'>
+                <button class='btn btn-outline-secondary @(selectedTool == "erase" ? "active" : "")' type="button" title="Erase" @onclick='() => SelectTool("erase")'>
                     <i class="bi bi-eraser"></i>
                 </button>
-                <button class='btn btn-outline-secondary @(selectedTool == "pan" ? "active" : "")' @onclick='() => SelectTool("pan")'>
+                <button class='btn btn-outline-secondary @(selectedTool == "pan" ? "active" : "")' type="button" title="Pan" @onclick='() => SelectTool("pan")'>
                     <i class="bi bi-arrows-move"></i>
                 </button>
             </div>
@@ -31,16 +37,7 @@
             </div>
         </div>
         <!-- Canvas -->
-        <div class="flex-grow-1 flex-column">
-            <canvas @ref="canvasRef" width="1024" height="1024" style="border:1px solid #ccc; background:#f8f9fa; width:100%;"></canvas>
-            <!-- View Prefs below canvas -->
-            <div id="viewPrefs" class="mt-3" style="display:flex; align-items: center">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" checked id="viewGridChkBx" @onchange="@SetShowGrid">
-                    <label class="form-check-label" for="viewGridChkBx">Show Grid</label>
-                </div>
-            </div>
-        </div>
+        <canvas @ref="canvasRef" width="1024" height="1024" style="border:1px solid #ccc; background:#f8f9fa; width:100%;"></canvas>
     </div>
 </div>
 

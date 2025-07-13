@@ -2,7 +2,7 @@
     let paletteCanvas;
     let paletteContext;
     let paletteTiles = [];
-    let cellSize = 64; // Default cell size, can be overridden
+    let cellSize = { width: 64, height: 64 }; // Default cell size, can be overridden
     let running = false;
 
     function renderLoop() {
@@ -25,7 +25,7 @@
             paletteCanvas.onmousemove = this.mousemove;
             paletteCanvas.onclick = this.click;
             paletteContext = paletteCanvas.getContext('2d');
-            paletteTiles = tiles.slice().sort((a, b) => (b.size.width * b.size.height) - (a.size.width * a.size.height));
+            paletteTiles = Object.values(tiles).slice().sort((a, b) => (b.size.width * b.size.height) - (a.size.width * a.size.height));
             if (cellSizeArg) {
                 cellSize = cellSizeArg;
             }
@@ -112,18 +112,18 @@
             }
         },
         calculateRequiredHeight: function (tiles, cellSizeArg, canvasWidth) {
-            let cellSize = cellSizeArg || 64;
+            let cellSize = cellSizeArg || { width: 64, height: 64 };
             // Use a bin packer to simulate placement and get the max Y
             let bin = new MaxRectsBin(canvasWidth, 100000); // Large height
             let maxY = 0;
-            for (let i = 0; i < tiles.length; i++) {
-                let w = tiles[i].size.width * cellSize;
-                let h = tiles[i].size.height * cellSize;
+            Object.keys(tiles).forEach(key => {
+                let w = tiles[key].size.width * cellSize;
+                let h = tiles[key].size.height * cellSize;
                 let pos = bin.insert(w, h);
                 if (pos) {
                     maxY = Math.max(maxY, pos.y + h);
                 }
-            }
+            });
             // Add a little padding
             return Math.ceil(maxY + 8);
         },

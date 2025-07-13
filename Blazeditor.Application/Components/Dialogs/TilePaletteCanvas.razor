@@ -1,40 +1,12 @@
 @using Blazeditor.Application.Models
 @inject IJSRuntime JS
-
+<ImportTilePalette @ref="popupRef" OnConfirm="HandleInput" CellSize="@(Area?.CellSize ?? 64)" />
+<div id="paletteHeader">
+    <div><h3>Tile Palette</h3></div>
+    <div @onclick="ShowImportTilePalette" class="btn btn-outline-secondary"><i class="bi bi-box-arrow-in-down"></i></div>
+</div>
 <div style="height: 400px; overflow-y: auto; border:1px solid #ccc; background:#f8f9fa;">
     <canvas @ref="canvasRef" width="512" style="width:100%; display:block;"></canvas>
 </div>
 
-@code {
-    private ElementReference canvasRef;
-    [Parameter] public List<Tile> Tiles { get; set; } = new();
-    [Parameter] public EventCallback<int> OnTileSelected { get; set; }
-    private DotNetObjectReference<TilePaletteCanvas>? dotNetRef;
-    private const int CellSize = 64;
 
-    protected override async Task OnParametersSetAsync()
-    {
-        if (Tiles != null && Tiles.Count > 0)
-        {
-            // Ask JS to calculate and set the required canvas height
-            var height = await JS.InvokeAsync<int>("tilePaletteCanvas.calculateRequiredHeight", Tiles, CellSize, 512);
-            await JS.InvokeVoidAsync("tilePaletteCanvas.setCanvasHeight", canvasRef, height);
-            await JS.InvokeVoidAsync("tilePaletteCanvas.init", canvasRef, Tiles, CellSize);
-        }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            dotNetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("tilePaletteCanvas.setDotNetRef", dotNetRef);
-        }
-    }
-
-    [JSInvokable]
-    public async Task OnJsTileSelected(int tileId)
-    {
-        await OnTileSelected.InvokeAsync(tileId);
-    }
-}

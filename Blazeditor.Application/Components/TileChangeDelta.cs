@@ -14,7 +14,7 @@ public class TileChangeDelta : IDefinitionDelta
         for (int i = 0; i < Changes.Count; i++)
         {
             var change = Changes[i];
-            var tile = change.NewTileId.HasValue ? area.TilePalette.FirstOrDefault(t => t.Id == change.NewTileId.Value) : null;
+            var tile = change.NewTileId.HasValue ? area.TilePalette[change.NewTileId.Value] : null;
             tileMap[change.X, change.Y] = tile;
         }
     }
@@ -25,7 +25,7 @@ public class TileChangeDelta : IDefinitionDelta
         for (int i = 0; i < Changes.Count; i++)
         {
             var change = Changes[i];
-            var tile = change.OldTileId.HasValue ? area.TilePalette.FirstOrDefault(t => t.Id == change.OldTileId.Value) : null;
+            var tile = change.OldTileId.HasValue ? area.TilePalette[change.OldTileId.Value] : null;
             tileMap[change.X, change.Y] = tile;
         }
     }
