@@ -59,6 +59,7 @@ namespace Blazeditor.Application.Components.Pages
                 }
             }
         }
+
         private async Task OnPaletteImport(PaletteImportEventArgs paletteImportEventArgs)
         {
             if (Area != null)

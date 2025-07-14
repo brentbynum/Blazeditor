@@ -1,27 +1,40 @@
 @using Microsoft.AspNetCore.Components
 <EditForm Model="areaModel" OnValidSubmit="HandleValidSubmit">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
-    <div class="mb-2">
-        <label>Name</label>
-        <InputText class="form-control" @bind-Value="areaModel.Name" />
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Area</h5>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="OnCancel"></button>
+                </div>
+                <div class="modal-body">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+                    <div class="mb-2">
+                        <label>Name</label>
+                        <InputText class="form-control" @bind-Value="areaModel.Name" />
+                    </div>
+                    <div class="mb-2">
+                        <label>Description</label>
+                        <InputText class="form-control" @bind-Value="areaModel.Description" />
+                    </div>
+                    <div class="mb-2">
+                        <label>Width</label>
+                        <InputNumber class="form-control" @bind-Value="areaModel.Width" />
+                    </div>
+                    <div class="mb-2">
+                        <label>Height</label>
+                        <InputNumber class="form-control" @bind-Value="areaModel.Height" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" type="submit">Create Area</button>
+                    <button class="btn btn-secondary ms-2" type="button" @onclick="OnCancel">Cancel</button>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="mb-2">
-        <label>Description</label>
-        <InputText class="form-control" @bind-Value="areaModel.Description" />
-    </div>
-    <div class="mb-2">
-        <label>Width</label>
-        <InputNumber class="form-control" @bind-Value="areaModel.Width" />
-    </div>
-    <div class="mb-2">
-        <label>Height</label>
-        <InputNumber class="form-control" @bind-Value="areaModel.Height" />
-    </div>
-    <button class="btn btn-primary" type="submit">Create Area</button>
-    <button class="btn btn-secondary ms-2" type="button" @onclick="OnCancel">Cancel</button>
 </EditForm>
-
 @code {
     private AreaModel areaModel = new();
     [Parameter] public EventCallback<AreaModel> OnCreate { get; set; }

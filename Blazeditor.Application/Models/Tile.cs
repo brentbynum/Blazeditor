@@ -1,3 +1,6 @@
+using LiteDB;
+using System.Text.Json.Serialization;
+
 namespace Blazeditor.Application.Models
 {
     public class Tile : BaseEntity
@@ -12,6 +15,7 @@ namespace Blazeditor.Application.Models
         public string Type { get; set; } = string.Empty;
         public string Image { get; set; } = string.Empty;
         public Size Size { get; set; } = new Size(1, 1);
+        [BsonIgnore]
         public TileState PaletteState { get; set; }
     }
 

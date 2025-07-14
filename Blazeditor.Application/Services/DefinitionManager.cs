@@ -7,6 +7,7 @@ using SixLabors.ImageSharp.Formats.Png;
 using LiteDB;
 
 using Size = Blazeditor.Application.Models.Size;
+using System.Text.Json.Serialization;
 
 namespace Blazeditor.Application.Services
 {
@@ -50,10 +51,11 @@ namespace Blazeditor.Application.Services
                 {
                     foreach (var tileMap in area.Value.TileMaps)
                     {
-                        tileMap.Value.UpdateTileNames();
+                        tileMap.Value.UpdateTilePlacements();
                     }
                 }
                 col.Upsert(_userKey, _definition);
+                _db.Checkpoint();
                 IsDirty = false;
             }
             catch (Exception ex)
@@ -75,6 +77,7 @@ namespace Blazeditor.Application.Services
                 {
                     foreach (var tileMap in area.Value.TileMaps)
                     {
+                        tileMap.Value.Resize(area.Value.Size);
                         tileMap.Value.RebuildTiles(area.Value.TilePalette);
                     }
                 }

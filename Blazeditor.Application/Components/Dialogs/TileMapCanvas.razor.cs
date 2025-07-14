@@ -117,6 +117,7 @@ namespace Blazeditor.Application.Components.Dialogs
                     }
                     StateHasChanged();
                 });
+                
             }
         }
 

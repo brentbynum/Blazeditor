@@ -1,7 +1,15 @@
 using LiteDB;
+using System.Text.Json.Serialization;
 
 namespace Blazeditor.Application.Models
 {
+    public class TilePlacement
+    {
+        public int X { get; set; }
+        public int Y { get; set; }
+        public int? TileId { get; set; } // null means empty cell
+    }
+
     public class TileMap : BaseEntity
     {
         private Size _size;
@@ -10,16 +18,20 @@ namespace Blazeditor.Application.Models
         {
             Level = level;
             _size = size;
-            TileNames = new string?[size.Width * size.Height]; // Will be resized when Area.Size is set
-            Tiles = new Tile?[size.Width * size.Height]; // Will be resized when Area.Size is set
+            TilePlacements = new List<TilePlacement>(size.Width * size.Height);
+            Tiles = new Tile?[size.Width * size.Height];
         }
         public int Level { get; set; }
-        // Removed Size and TileSize from TileMap; now use Area.Size and Area.TileSize
-        // Store only tile names for persistence
-        public string?[] TileNames { get; set; } = new string?[1];
-        // Ignore Tiles array for persistence
+        // Store tile placements for persistence
+        public List<TilePlacement> TilePlacements { get; set; } = new List<TilePlacement>();
+
+        private Tile?[] _tiles = Array.Empty<Tile?>();
         [BsonIgnore]
-        public Tile?[] Tiles { get; set; } = new Tile?[1];
+        public Tile?[] Tiles
+        {
+            get { return _tiles; }
+            set { _tiles = value; }
+        }
         [BsonIgnore]
         public Tile? this[int x, int y]
         {
@@ -41,30 +53,46 @@ namespace Blazeditor.Application.Models
             if (newSize.Width <= 0 || newSize.Height <= 0)
                 throw new ArgumentException("Size must be greater than zero.");
             _size = newSize;
-            TileNames = new string?[newSize.Width * newSize.Height];
             Tiles = new Tile?[newSize.Width * newSize.Height];
+            // Optionally: repopulate TilePlacements from Tiles if needed
         }
-        // Call this after deserialization to rebuild Tiles from palette
+        // Call this before serialization to update TilePlacements from Tiles
+        public void UpdateTilePlacements()
+        {
+            TilePlacements.Clear();
+            for (int y = 0; y < _size.Height; y++)
+            {
+                for (int x = 0; x < _size.Width; x++)
+                {
+                    var tile = this[x, y];
+                    if (tile != null)
+                    {
+                        TilePlacements.Add(new TilePlacement
+                        {
+                            X = x,
+                            Y = y,
+                            TileId = tile?.Id
+                        });
+                    }
+                }
+            }
+            Console.WriteLine($"TilePlacements updated: {TilePlacements.Count} placements for map '{Name}' at level {Level}");
+        }
+        // Call this after deserialization to rebuild Tiles from TilePlacements
         public void RebuildTiles(Dictionary<int, Tile> palette)
         {
-            // The consuming code should resize Tiles based on Area.Size
-            Tiles = new Tile?[TileNames.Length];
-            for (int i = 0; i < TileNames.Length; i++)
+            Tiles = new Tile?[_size.Width * _size.Height];
+            foreach (var placement in TilePlacements)
             {
-                if (TileNames[i] != null)
+                if (placement.TileId.HasValue && palette.TryGetValue(placement.TileId.Value, out var tile))
                 {
-                    Tiles[i] = palette.Values.FirstOrDefault(t => t.Name == TileNames[i]);
+                    this[placement.X, placement.Y] = tile;
                 }
                 else
                 {
-                    Tiles[i] = null;
+                    this[placement.X, placement.Y] = null;
                 }
             }
-        }
-        // Call this before serialization to update TileNames from Tiles
-        public void UpdateTileNames()
-        {
-            TileNames = Tiles.Select(t => t?.Name).ToArray();
         }
     }
 }
