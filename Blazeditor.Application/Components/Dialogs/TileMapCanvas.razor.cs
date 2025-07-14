@@ -111,7 +111,7 @@ namespace Blazeditor.Application.Components.Dialogs
                 {
                     if (JS != null)
                     {
-                        var updates = new[] { new { x, y, level, tile } };
+                        var updates = new[] { new { x, y, level, tileId } };
                         JS.InvokeVoidAsync("tileMapCanvas.updateTilePositions", updates);
                     }
                     StateHasChanged();

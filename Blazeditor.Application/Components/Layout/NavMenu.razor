@@ -1,30 +1,39 @@
 ﻿@using Blazeditor.Application.Models
 @using Blazeditor.Application.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @inject DefinitionManager Definition
 @inject NavigationManager Navigation
 
-<div class="d-flex flex-column align-items-stretch flex-shrink-0 bg-body-tertiary" style="width: 380px;">
+<CascadingAuthenticationState>
+    <AuthorizeView>
+        <Authorized>
+            <div class="d-flex flex-column align-items-stretch flex-shrink-0 bg-body-tertiary" style="width: 380px;">
 
-    <div class="d-flex align-items-center justify-content-between flex-shrink-0 p-3 link-body-emphasis text-decoration-none border-bottom">
-        <span class="fs-5 fw-semibold">Areas</span>
-        <AreaToolbar />
-    </div>
-    <div class="list-group list-group-flush border-bottom scrollarea">
-        @foreach (var area in Definition.GetAreas())
-        {
-            <div class="d-flex align-items-center list-group-item list-group-item-action py-3 lh-sm">
-                <NavLink class="flex-grow-1" href=@($"/area/{area.Id}")>
-                    <div class="d-flex w-100 align-items-center justify-content-between">
-                        <strong class="mb-1">@area.Name</strong>
-                        <small class="text-body-secondary">@area.Id</small>
-                    </div>
-                    <div class="col-10 mb-1 small">@area.Description</div>
-                </NavLink>
-                <button class="btn btn-sm btn-danger ms-2" title="Remove Area" type="button" @onclick="() => RemoveArea(area.Id)"><i class="bi bi-trash"></i></button>
+                <div class="d-flex align-items-center justify-content-between flex-shrink-0 p-3 link-body-emphasis text-decoration-none border-bottom">
+                    <span class="fs-5 fw-semibold">Areas</span>
+
+                    <AreaToolbar />
+
+                </div>
+                <div class="list-group list-group-flush border-bottom scrollarea">
+                    @foreach (var area in Definition.GetAreas())
+                    {
+                        <div class="d-flex align-items-center list-group-item list-group-item-action py-3 lh-sm">
+                            <NavLink class="flex-grow-1" href=@($"/area/{area.Id}")>
+                                <div class="d-flex w-100 align-items-center justify-content-between">
+                                    <strong class="mb-1">@area.Name</strong>
+                                    <small class="text-body-secondary">@area.Id</small>
+                                </div>
+                                <div class="col-10 mb-1 small">@area.Description</div>
+                            </NavLink>
+                            <button class="btn btn-sm btn-danger ms-2" title="Remove Area" type="button" @onclick="() => RemoveArea(area.Id)"><i class="bi bi-trash"></i></button>
+                        </div>
+                    }
+                </div>
             </div>
-        }
-    </div>
-</div>
+        </Authorized>
+    </AuthorizeView>
+</CascadingAuthenticationState>
 
 @code {
     protected override void OnInitialized()
