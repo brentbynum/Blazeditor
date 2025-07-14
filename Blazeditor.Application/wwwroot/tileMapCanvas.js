@@ -16,6 +16,7 @@
     let selectedCells = [];
     let tilePalette = [];
     let activeLevel = 0;
+    let isMouseOver = false;
     function cellsEqual(a, b) {
         return a.x === b.x && a.y === b.y && a.level === b.level;
     }
@@ -38,6 +39,7 @@
 
     let tools = {
         paint: (function () {
+            active = false;
             return {
                 cursor: "url('/cursors/paint.png'), auto",
                 click: (x, y, level) => {
@@ -46,8 +48,8 @@
                     }
                 },
                 drawOverlay: (ctx, x, y, level) => {
-                    if (selectedTileId !== null && tilePalette && tilePalette.length > 0) {
-                        const tile = tilePalette.find(t => t.id === selectedTileId);
+                    if (active && selectedTileId !== null && tilePalette) {
+                        const tile = tilePalette[selectedTileId];
                         if (tile) {
                             if (!tile._overlayImage) {
                                 let img = new window.Image();
@@ -63,6 +65,12 @@
                             }
                         }
                     }
+                },
+                mousemove: () => {
+                    active = true;
+                },
+                mouseleave: () => {
+                    active = false;
                 }
             }
         })(),
@@ -144,6 +152,7 @@
 
     // default tool is paint
     let selectedTool = tools.paint;
+
     function renderLoop() {
         if (!running) return;
         window.tileMapCanvas.drawTiles();
@@ -188,6 +197,10 @@
             mapCanvas.addEventListener('mousedown', this.mousedown);
             mapCanvas.addEventListener('mouseup', this.mouseup);
             mapCanvas.addEventListener('mouseleave', this.mouseleave);
+            // Set the default cursor for the canvas
+            if (mapCanvas) {
+                mapCanvas.style.cursor = selectedTool.cursor;
+            }
             if (tileMapsArg) {
                 tileMaps = tileMapsArg;
             }
@@ -223,7 +236,7 @@
             } else {
                 let pos = positions;
                 let map = tileMaps[pos.level]
-                map.tiles[pos.x + (pos.y * mapSize.width)] = pos.tile;
+                map.tiles[pos.x + (pos.y * mapSize.width)] = tilePalette[pos.tileId];
             }
         },
         setShowGrid: function (val) {
@@ -260,6 +273,7 @@
             if (selectedTool.mouseleave) {
                 selectedTool.mouseleave(getScaledMousePosition(e));
             }
+            isMouseOver = false;
         },
         mousemove: function (e) {
             var pos = getScaledMousePosition(e);
@@ -268,11 +282,13 @@
             const worldY = origin.y + pos.y / scale;
             hoveredCell.x = Math.floor(worldX / cellSize);
             hoveredCell.y = Math.floor(worldY / cellSize);
-            hoveredCell.level = activeLevel; // For now, always use level 0
+            hoveredCell.level = activeLevel; 
 
             if (selectedTool.mousemove) {
                 selectedTool.mousemove(pos);
             }
+            isMouseOver = true;
+
         },
         click: function (e) {
             var pos = getScaledMousePosition(e);
@@ -338,7 +354,7 @@
                             ctx.strokeStyle = '#ccc';
                             ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
                             // Highlight hovered cell
-                            if (x === hoveredCell.x && y === hoveredCell.y && parseInt(levelKey) === hoveredCell.level) {
+                            if (isMouseOver && x === hoveredCell.x && y === hoveredCell.y && parseInt(levelKey) === hoveredCell.level) {
                                 ctx.save();
                                 ctx.strokeStyle = '#ff0';
                                 ctx.lineWidth = 3;

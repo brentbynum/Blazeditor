@@ -4,6 +4,7 @@
     let paletteTiles = [];
     let cellSize = { width: 64, height: 64 }; // Default cell size, can be overridden
     let running = false;
+    let isMouseOver = false;
 
     function renderLoop() {
         if (!running) return;
@@ -23,6 +24,7 @@
         init: function (canvas, tiles, cellSizeArg) {
             paletteCanvas = canvas;
             paletteCanvas.onmousemove = this.mousemove;
+            paletteCanvas.onmouseleave = this.onmouseleave;
             paletteCanvas.onclick = this.click;
             paletteContext = paletteCanvas.getContext('2d');
             paletteTiles = Object.values(tiles).slice().sort((a, b) => (b.size.width * b.size.height) - (a.size.width * a.size.height));
@@ -60,6 +62,10 @@
                     tile.paletteState.isMouseOver = false;
                 }
             }
+            isMouseOver = true;
+        },
+        onmouseleave: function () {
+            isMouseOver = false;
         },
         click: function (e) {
             if (!paletteTiles || paletteTiles.length === 0) return;
@@ -98,7 +104,7 @@
                 // Draw tile image if present
                 if (tile.image && tile.image.startsWith('data:image')) {
                     paletteContext.drawImage(tile.paletteState.image, pos.x, pos.y, w, h);
-                    paletteContext.strokeStyle = tile.paletteState.isMouseOver ? '#ff0' : '#999';
+                    paletteContext.strokeStyle = isMouseOver && tile.paletteState.isMouseOver ? '#ff0' : '#999';
                     paletteContext.strokeRect(pos.x, pos.y, w, h);
                 } else {
                     paletteContext.fillStyle = '#6c757d';
@@ -106,7 +112,7 @@
                     paletteContext.strokeStyle = '#343a40';
                     paletteContext.strokeRect(pos.x, pos.y, w, h);
                 }
-                paletteContext.fillStyle = tile.paletteState.isMouseOver ? '#ff0' : '#999';
+                paletteContext.fillStyle = isMouseOver && tile.paletteState.isMouseOver ? '#ff0' : '#999';
                 paletteContext.font = '16px sans-serif';
                 paletteContext.fillText(tile.name || 'Tile', pos.x + 8, pos.y + 32);
             }

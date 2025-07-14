@@ -27,12 +27,14 @@ namespace Blazeditor.Application.Models
 
         private Tile?[] _tiles = Array.Empty<Tile?>();
         [BsonIgnore]
+        // runtime tiles array, not serialized
         public Tile?[] Tiles
         {
             get { return _tiles; }
             set { _tiles = value; }
         }
         [BsonIgnore]
+        // runtime tiles access, not serialized
         public Tile? this[int x, int y]
         {
             get

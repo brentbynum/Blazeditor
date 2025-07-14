@@ -102,9 +102,8 @@ namespace Blazeditor.Application.Components.Dialogs
         public void OnJsPlaceTile(int tileId, int x, int y, int level)
         {
             var areaId = Area?.Id;
-            if (areaId.HasValue && Area?.TilePalette != null && Area.TilePalette.ContainsKey(tileId))
+            if (areaId.HasValue && Area?.TilePalette != null && Area.TilePalette.TryGetValue(tileId, out Tile? tile))
             {
-                var tile = Area.TilePalette[tileId];
                 if (tile == null)
                     return;
                 Definition.ExecuteTileEdit(areaId.Value, level, x, y, tile);
@@ -142,7 +141,7 @@ namespace Blazeditor.Application.Components.Dialogs
                                 continue; // Only fill if cell is empty
                             var tile = Area.TilePalette[tileId];
                             map[cell.X, cell.Y] = tile;
-                            updates.Add(new { x = cell.X, y = cell.Y, level, tile });
+                            updates.Add(new { x = cell.X, y = cell.Y, level, tileId });
                         }
                     }
                 }
