@@ -1,9 +1,8 @@
-namespace Blazeditor.Application.Models
+namespace Blazeditor.Application.Models;
+
+public class ItemInstance(Item item, int x, int y) : BaseEntity(item.Name, item.Description)
 {
-    public class ItemInstance(Item item, int x, int y) : BaseEntity(item.Name, item.Description)
-    {
-        public Item Item { get; } = item;
-        public Coordinate Location { get; set; } = new Coordinate(x, y);
-        public int Quantity { get; set; } = 1;
-    }
+    public Item Item { get; } = item;
+    public Coordinate Location { get; set; } = new Coordinate(x, y);
+    public int Quantity { get; set; } = 1;
 }

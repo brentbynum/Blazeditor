@@ -5,7 +5,7 @@
     let cellSize = { width: 64, height: 64 }; // Default cell size, can be overridden
     let running = false;
     let isMouseOver = false;
-
+    let selectedTileId = null;
     function renderLoop() {
         if (!running) return;
         window.tilePaletteCanvas.drawTiles();
@@ -70,7 +70,7 @@
         click: function (e) {
             if (!paletteTiles || paletteTiles.length === 0) return;
             const pos = getScaledMousePosition(e);
-            let selectedTileId = null;
+            
             for (let tile of paletteTiles) {
                 if (tile.paletteState && tile.paletteState.layout) {
                     const l = tile.paletteState.layout;
@@ -110,6 +110,10 @@
                     paletteContext.fillStyle = '#6c757d';
                     paletteContext.fillRect(pos.x, pos.y, w, h);
                     paletteContext.strokeStyle = '#343a40';
+                    paletteContext.strokeRect(pos.x, pos.y, w, h);
+                }
+                if (selectedTileId == tile.id) {
+                    paletteContext.strokeStyle = '#f88';
                     paletteContext.strokeRect(pos.x, pos.y, w, h);
                 }
                 paletteContext.fillStyle = isMouseOver && tile.paletteState.isMouseOver ? '#ff0' : '#999';

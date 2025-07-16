@@ -3,103 +3,123 @@ using Blazeditor.Application.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
-namespace Blazeditor.Application.Components.Pages
+namespace Blazeditor.Application.Components.Pages;
+
+public partial class AreaEditor : IDisposable
 {
-    public partial class AreaEditor : IDisposable
+    [Parameter]
+    public int areaId { get; set; }
+    public Tile? SelectedTile  { get; set; }
+    public int ActiveLevel { get; set; } = 0;
+    public Area? Area { get; set; }
+    private DotNetObjectReference<AreaEditor>? dotNetRef;
+    private int? previousAreaId = null;
+
+    protected override async Task OnParametersSetAsync()
     {
-        [Parameter]
-        public int areaId { get; set; }
-        public Tile? SelectedTile  { get; set; }
-        public int ActiveLevel { get; set; } = 0;
-        public Area? Area { get; set; }
-        private DotNetObjectReference<AreaEditor>? dotNetRef;
-        private int? previousAreaId = null;
-
-        protected override async Task OnParametersSetAsync()
+        // Auto-save if navigating to a new area and there are unsaved changes
+        if (previousAreaId.HasValue && previousAreaId.Value != areaId && Definition.IsDirty)
         {
-            // Auto-save if navigating to a new area and there are unsaved changes
-            if (previousAreaId.HasValue && previousAreaId.Value != areaId && Definition.IsDirty)
-            {
-                await Definition.SaveAsync();
-            }
-            previousAreaId = areaId;
-            Definition.SelectedArea = Definition.GetAreas().FirstOrDefault(a => a.Id == areaId);
-            Area = Definition.SelectedArea;
+            await Definition.SaveAsync();
         }
+        previousAreaId = areaId;
+        Definition.SelectedArea = Definition.GetAreas().FirstOrDefault(a => a.Id == areaId);
+        Area = Definition.SelectedArea;
+    }
 
-        public void OnTileSelected(int tileId)
+    public void OnTileSelected(int tileId)
+    {
+        SelectedTile = Area?.TilePalette[tileId];
+        StateHasChanged();
+    }
+    public void OnLevelSelected(int level)
+    {
+        ActiveLevel = level;
+        StateHasChanged();
+    }
+    public void OnAddLevel()
+    {
+        if (Area != null)
         {
-            SelectedTile = Area?.TilePalette[tileId];
+            int newLevel = Area.TileMaps.Count > 0 ? Area.TileMaps.Keys.Max() + 1 : 0;
+            Area.TileMaps[newLevel] = new TileMap($"Level {newLevel}", $"Tile map for level {newLevel}", newLevel, Area.Size);
+            ActiveLevel = newLevel;
             StateHasChanged();
         }
-        public void OnLevelSelected(int level)
+    }
+    public void OnRemoveLevel()
+    {
+        if (Area != null && Area.TileMaps.Count > 1)
         {
-            ActiveLevel = level;
-            StateHasChanged();
-        }
-        public void OnAddLevel()
-        {
-            if (Area != null)
+            if (Area.TileMaps.TryGetValue(ActiveLevel, out var map))
             {
-                int newLevel = Area.TileMaps.Count > 0 ? Area.TileMaps.Keys.Max() + 1 : 0;
-                Area.TileMaps[newLevel] = new TileMap($"Level {newLevel}", $"Tile map for level {newLevel}", newLevel, Area.Size);
-                ActiveLevel = newLevel;
+                Area.TileMaps.Remove(ActiveLevel);
+                ActiveLevel = Area.TileMaps.Keys.FirstOrDefault();
                 StateHasChanged();
             }
         }
-        public void OnRemoveLevel()
-        {
-            if (Area != null && Area.TileMaps.Count > 1)
-            {
-                if (Area.TileMaps.TryGetValue(ActiveLevel, out var map))
-                {
-                    Area.TileMaps.Remove(ActiveLevel);
-                    ActiveLevel = Area.TileMaps.Keys.FirstOrDefault();
-                    StateHasChanged();
-                }
-            }
-        }
+    }
 
-        private async Task OnPaletteImport(PaletteImportEventArgs paletteImportEventArgs)
+    private async Task OnPaletteImport(PaletteImportEventArgs paletteImportEventArgs)
+    {
+        if (Area != null)
         {
-            if (Area != null)
-            {
-                await Definition.AddTilePaletteToArea(Area, paletteImportEventArgs.FileName, paletteImportEventArgs.CellSize.Width, paletteImportEventArgs.CellSize.Height);
-                Area = Definition.GetAreas().FirstOrDefault(a => a.Id == areaId);
-                StateHasChanged();
-            }
-        }
-
-        [JSInvokable]
-        public void OnUndo()
-        {
-            Definition.UndoTileEdit();
+            await Definition.AddTilePaletteToArea(Area, paletteImportEventArgs.FileName, paletteImportEventArgs.CellSize.Width, paletteImportEventArgs.CellSize.Height);
             Area = Definition.GetAreas().FirstOrDefault(a => a.Id == areaId);
             StateHasChanged();
         }
-        [JSInvokable]
-        public void OnRedo()
+    }
+
+    public async Task DeleteSelectedTile()
+    {
+        if (Area != null && SelectedTile != null)
         {
-            Definition.RedoTileEdit();
-            Area = Definition.GetAreas().FirstOrDefault(a => a.Id == areaId);
+            // Check if the tile is referenced in any TileMap
+            bool isReferenced = Area.TileMaps.Values.Any(map =>
+                map.TilePlacements.Any(tp => tp.TileId == SelectedTile.Id));
+            if (isReferenced)
+            {
+                // Optionally, show a message to the user (could use a toast, dialog, etc.)
+                // For now, just return and do nothing
+                // TODO: Add user feedback for failed delete
+                return;
+            }
+            Area.TilePalette.Remove(SelectedTile.Id);
+            SelectedTile = null;
+            await Definition.SaveAsync();
             StateHasChanged();
         }
+    }
 
-        protected override async Task OnAfterRenderAsync(bool firstRender)
+    [JSInvokable]
+    public void OnUndo()
+    {
+        Definition.UndoTileEdit();
+        Area = Definition.GetAreas().FirstOrDefault(a => a.Id == areaId);
+        StateHasChanged();
+    }
+    [JSInvokable]
+    public void OnRedo()
+    {
+        Definition.RedoTileEdit();
+        Area = Definition.GetAreas().FirstOrDefault(a => a.Id == areaId);
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
         {
-            if (firstRender)
-            {
-                dotNetRef = DotNetObjectReference.Create(this);
-                await JS.InvokeVoidAsync("areaEditorKeyboard.init", dotNetRef);
-            }
+            dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("areaEditorKeyboard.init", dotNetRef);
         }
-        public void Dispose()
+    }
+    public void Dispose()
+    {
+        if (dotNetRef != null)
         {
-            if (dotNetRef != null)
-            {
-                JS.InvokeVoidAsync("areaEditorKeyboard.dispose");
-                dotNetRef.Dispose();
-            }
+            JS.InvokeVoidAsync("areaEditorKeyboard.dispose");
+            dotNetRef.Dispose();
         }
     }
 }

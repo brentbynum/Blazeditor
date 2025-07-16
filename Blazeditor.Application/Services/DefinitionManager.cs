@@ -9,278 +9,277 @@ using LiteDB;
 using Size = Blazeditor.Application.Models.Size;
 using System.Text.Json.Serialization;
 
-namespace Blazeditor.Application.Services
+namespace Blazeditor.Application.Services;
+
+public class DefinitionManager : IDisposable
 {
-    public class DefinitionManager : IDisposable
+    private readonly LiteDatabase _db;
+    private readonly string _userKey;
+    public bool IsDirty { get; private set; } = false;
+    private Definition _definition = new Definition();
+    public Area? SelectedArea { get; set; }
+
+    public event Action<Definition>? OnChanged;
+    // --- Undo/Redo for Tile Edits ---
+    private class TileEditUndo
     {
-        private readonly LiteDatabase _db;
-        private readonly string _userKey;
-        public bool IsDirty { get; private set; } = false;
-        private Definition _definition = new Definition();
-        public Area? SelectedArea { get; set; }
+        public int AreaId { get; set; }
+        public int TileMapLevel { get; set; }
+        public int X { get; set; }
+        public int Y { get; set; }
+        public Tile? OldTile { get; set; }
+        public Tile? NewTile { get; set; }
+    }
+    private readonly Stack<TileEditUndo> _tileUndoStack = new();
+    private readonly Stack<TileEditUndo> _tileRedoStack = new();
 
-        public event Action<Definition>? OnChanged;
-        // --- Undo/Redo for Tile Edits ---
-        private class TileEditUndo
-        {
-            public int AreaId { get; set; }
-            public int TileMapLevel { get; set; }
-            public int X { get; set; }
-            public int Y { get; set; }
-            public Tile? OldTile { get; set; }
-            public Tile? NewTile { get; set; }
-        }
-        private readonly Stack<TileEditUndo> _tileUndoStack = new();
-        private readonly Stack<TileEditUndo> _tileRedoStack = new();
+    public DefinitionManager(IHttpContextAccessor httpContextAccessor)
+    {
+        Console.WriteLine("Creating DefinitionManager.");
+        _db = new LiteDatabase("Filename=definitions.db;Connection=shared");
+        var user = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "guest";
+        _userKey = user;
+        LoadDefinitionAsync().GetAwaiter().GetResult();
+    }
 
-        public DefinitionManager(IHttpContextAccessor httpContextAccessor)
+    public virtual async Task SaveAsync()
+    {
+        try
         {
-            Console.WriteLine("Creating DefinitionManager.");
-            _db = new LiteDatabase("Filename=definitions.db;Connection=shared");
-            var user = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "guest";
-            _userKey = user;
-            LoadDefinitionAsync().GetAwaiter().GetResult();
-        }
-
-        public virtual async Task SaveAsync()
-        {
-            try
+            var col = _db.GetCollection<Definition>("definitions");
+            foreach (var area in _definition.Areas)
             {
-                var col = _db.GetCollection<Definition>("definitions");
-                foreach (var area in _definition.Areas)
+                foreach (var tileMap in area.Value.TileMaps)
                 {
-                    foreach (var tileMap in area.Value.TileMaps)
-                    {
-                        tileMap.Value.UpdateTilePlacements();
-                    }
+                    tileMap.Value.UpdateTilePlacements();
                 }
-                col.Upsert(_userKey, _definition);
-                _db.Checkpoint();
-                IsDirty = false;
             }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"[DefinitionManager] Error saving definition: {ex.Message}\n{ex.StackTrace}");
-            }
-            await Task.CompletedTask;
+            col.Upsert(_userKey, _definition);
+            _db.Checkpoint();
+            IsDirty = false;
         }
-
-        public virtual async Task LoadDefinitionAsync()
+        catch (Exception ex)
         {
-            try
+            Console.Error.WriteLine($"[DefinitionManager] Error saving definition: {ex.Message}\n{ex.StackTrace}");
+        }
+        await Task.CompletedTask;
+    }
+
+    public virtual async Task LoadDefinitionAsync()
+    {
+        try
+        {
+            var col = _db.GetCollection<Definition>("definitions");
+            var loaded = col.FindById(_userKey);
+            if (loaded != null)
+                _definition = loaded;
+            foreach (var area in _definition.Areas)
             {
-                var col = _db.GetCollection<Definition>("definitions");
-                var loaded = col.FindById(_userKey);
-                if (loaded != null)
-                    _definition = loaded;
-                foreach (var area in _definition.Areas)
+                foreach (var tileMap in area.Value.TileMaps)
                 {
-                    foreach (var tileMap in area.Value.TileMaps)
-                    {
-                        tileMap.Value.Resize(area.Value.Size);
-                        tileMap.Value.RebuildTiles(area.Value.TilePalette);
-                    }
+                    tileMap.Value.Resize(area.Value.Size);
+                    tileMap.Value.RebuildTiles(area.Value.TilePalette);
                 }
-                IsDirty = false;
             }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"[DefinitionManager] Error loading definition: {ex.Message}\n{ex.StackTrace}");
-            }
-            await Task.CompletedTask;
+            IsDirty = false;
         }
-
-        private void MarkDirty() => IsDirty = true;
-
-        public void ExecuteTileEdit(int areaId, int level, int x, int y, Tile? newTile)
+        catch (Exception ex)
         {
-            if (!_definition.Areas.TryGetValue(areaId, out var area)) return;
-            if (!area.TileMaps.TryGetValue(level, out var map)) return;
-            var oldTile = map[x, y];
-            var undo = new TileEditUndo
+            Console.Error.WriteLine($"[DefinitionManager] Error loading definition: {ex.Message}\n{ex.StackTrace}");
+        }
+        await Task.CompletedTask;
+    }
+
+    private void MarkDirty() => IsDirty = true;
+
+    public void ExecuteTileEdit(int areaId, int level, int x, int y, Tile? newTile)
+    {
+        if (!_definition.Areas.TryGetValue(areaId, out var area)) return;
+        if (!area.TileMaps.TryGetValue(level, out var map)) return;
+        var oldTile = map[x, y];
+        var undo = new TileEditUndo
+        {
+            AreaId = areaId,
+            TileMapLevel = level,
+            X = x,
+            Y = y,
+            OldTile = oldTile,
+            NewTile = newTile
+        };
+        _tileUndoStack.Push(undo);
+        _tileRedoStack.Clear();
+        map[x, y] = newTile;
+        map.Tiles = map.Tiles.ToArray(); // force Blazor update
+        OnChanged?.Invoke(_definition);
+        MarkDirty();
+    }
+
+    public void UndoTileEdit()
+    {
+        if (_tileUndoStack.Count == 0) return;
+        var edit = _tileUndoStack.Pop();
+        if (!_definition.Areas.TryGetValue(edit.AreaId, out var area)) return;
+        if (!area.TileMaps.TryGetValue(edit.TileMapLevel, out var map)) return;
+        map[edit.X, edit.Y] = edit.OldTile;
+        map.Tiles = map.Tiles.ToArray();
+        _tileRedoStack.Push(edit);
+        MarkDirty();
+        OnChanged?.Invoke(_definition);
+    }
+
+    public void RedoTileEdit()
+    {
+        if (_tileRedoStack.Count == 0) return;
+        var edit = _tileRedoStack.Pop();
+        if (!_definition.Areas.TryGetValue(edit.AreaId, out var area)) return;
+        if (!area.TileMaps.TryGetValue(edit.TileMapLevel, out var map)) return;
+        map[edit.X, edit.Y] = edit.NewTile;
+        map.Tiles = map.Tiles.ToArray();
+        _tileUndoStack.Push(edit);
+        MarkDirty();
+        OnChanged?.Invoke(_definition);
+    }
+
+    public IEnumerable<Area> GetAreas()
+    {
+        return _definition.Areas.Values;
+    }
+
+    public Area AddArea(string name, string description, Size areaSize, int cellSize = 64)
+    {
+        var area = new Area(name, description, areaSize, cellSize);
+        _definition.Areas[area.Id] = area;
+        OnChanged?.Invoke(_definition);
+        MarkDirty();
+        return area;
+    }
+
+    public Area AddArea(string name, string description, int width, int height, int cellSize = 64)
+    {
+        var area = new Area(name, description, new Size(width, height), cellSize);
+        area.TileMaps[0] = new TileMap("Default", $"{name} map", 0, area.Size);
+        _definition.Areas[area.Id] = area;
+        OnChanged?.Invoke(_definition);
+        MarkDirty();
+        return area;
+    }
+
+    public void RemoveArea(int areaId)
+    {
+        _definition.Areas.Remove(areaId);
+        OnChanged?.Invoke(_definition);
+        MarkDirty();
+    }
+
+    public List<string?> GetTileImageFilenames()
+    {
+        // Return all unique image filenames from all tile palettes
+        var filenames = new HashSet<string?>();
+        foreach (var area in _definition.Areas.Values)
+        {
+            foreach (var tile in area.TilePalette.Values)
             {
-                AreaId = areaId,
-                TileMapLevel = level,
-                X = x,
-                Y = y,
-                OldTile = oldTile,
-                NewTile = newTile
+                if (!string.IsNullOrEmpty(tile.Image))
+                    filenames.Add(tile.Image);
+            }
+        }
+        return filenames.ToList();
+    }
+
+    public Dictionary<int, Tile> ExtractTilesFromImage(string filename)
+    {
+        if (string.IsNullOrWhiteSpace(filename)) throw new ArgumentException("Filename cannot be null or empty.", nameof(filename));
+        var baseName = System.IO.Path.GetFileNameWithoutExtension(filename);
+        var imagePath = System.IO.Path.Combine("wwwroot", "tilesets", baseName + ".png");
+        var jsonPath = System.IO.Path.Combine("wwwroot", "tilesets", baseName + ".json");
+
+        if (!System.IO.File.Exists(imagePath)) throw new FileNotFoundException($"Image file not found: {imagePath}");
+        if (!System.IO.File.Exists(jsonPath)) throw new FileNotFoundException($"JSON file not found: {jsonPath}");
+
+        var json = System.IO.File.ReadAllText(jsonPath);
+        var doc = JsonDocument.Parse(json);
+        var tiles = doc.RootElement.GetProperty("tiles");
+        var cellSizeVal = doc.RootElement.GetProperty("cellSize").GetInt32();
+        var cellSize = new Size
+        {
+            Width = cellSizeVal,
+            Height = cellSizeVal
+        };
+
+        var result = new Dictionary<int, Tile>();
+        using (var image = Image.Load<Rgba32>(imagePath))
+        {
+            foreach (var tileElem in tiles.EnumerateArray())
+            {
+                string name = tileElem.GetProperty("name").GetString() ?? "tile";
+                string description = tileElem.GetProperty("description").GetString() ?? string.Empty;
+                int w = tileElem.GetProperty("w").GetInt32();
+                int h = tileElem.GetProperty("h").GetInt32();
+                int x = tileElem.GetProperty("x").GetInt32();
+                int y = tileElem.GetProperty("y").GetInt32();
+
+                var rect = new SixLabors.ImageSharp.Rectangle(
+                    x * cellSize.Width,
+                    y * cellSize.Height,
+                    w * cellSize.Width,
+                    h * cellSize.Height
+                );
+
+                using (var tileImg = image.Clone(ctx => ctx.Crop(rect)))
+                using (var ms = new MemoryStream())
+                {
+                    tileImg.Save(ms, new PngEncoder());
+                    var base64 = Convert.ToBase64String(ms.ToArray());
+                    var base64Url = $"data:image/png;base64,{base64}";
+                    var tile = new Tile(name, description, "default", base64Url, new Size(w, h));
+                    result.Add(tile.Id, tile);
+                }
+            }
+        }
+        return result;
+    }
+
+    public async Task<Dictionary<int, Tile>> AddTilePaletteToArea(Area area, string filename, int cellWidth = 64, int cellHeight = 64)
+    {
+        var baseName = System.IO.Path.GetFileNameWithoutExtension(filename);
+        var jsonPath = System.IO.Path.Combine("wwwroot", "tilesets", baseName + ".json");
+        Dictionary<int, Tile> tiles = new Dictionary<int, Tile>();
+        if (System.IO.File.Exists(jsonPath))
+        {
+            tiles = ExtractTilesFromImage(filename);
+        }
+        else
+        {
+            // Fallback: treat as a single tile
+            var imagePath = System.IO.Path.Combine("wwwroot", "tilesets", filename);
+            if (!System.IO.File.Exists(imagePath))
+                throw new FileNotFoundException($"Image file not found: {imagePath}");
+            using var image = Image.Load<Rgba32>(imagePath);
+            using var ms = new MemoryStream();
+            image.Save(ms, new PngEncoder());
+            var base64 = $"data:image/png;base64,{Convert.ToBase64String(ms.ToArray())}";
+            var tile = new Tile(baseName, $"Imported from {filename}", "default", base64, new Size(cellWidth, cellHeight));
+            tiles = new Dictionary<int, Tile>
+            {
+                { tile.Id, tile }
             };
-            _tileUndoStack.Push(undo);
-            _tileRedoStack.Clear();
-            map[x, y] = newTile;
-            map.Tiles = map.Tiles.ToArray(); // force Blazor update
-            OnChanged?.Invoke(_definition);
-            MarkDirty();
         }
-
-        public void UndoTileEdit()
+        foreach (var tile in tiles.Values)
         {
-            if (_tileUndoStack.Count == 0) return;
-            var edit = _tileUndoStack.Pop();
-            if (!_definition.Areas.TryGetValue(edit.AreaId, out var area)) return;
-            if (!area.TileMaps.TryGetValue(edit.TileMapLevel, out var map)) return;
-            map[edit.X, edit.Y] = edit.OldTile;
-            map.Tiles = map.Tiles.ToArray();
-            _tileRedoStack.Push(edit);
-            MarkDirty();
-            OnChanged?.Invoke(_definition);
-        }
-
-        public void RedoTileEdit()
-        {
-            if (_tileRedoStack.Count == 0) return;
-            var edit = _tileRedoStack.Pop();
-            if (!_definition.Areas.TryGetValue(edit.AreaId, out var area)) return;
-            if (!area.TileMaps.TryGetValue(edit.TileMapLevel, out var map)) return;
-            map[edit.X, edit.Y] = edit.NewTile;
-            map.Tiles = map.Tiles.ToArray();
-            _tileUndoStack.Push(edit);
-            MarkDirty();
-            OnChanged?.Invoke(_definition);
-        }
-
-        public IEnumerable<Area> GetAreas()
-        {
-            return _definition.Areas.Values;
-        }
-
-        public Area AddArea(string name, string description, Size areaSize, int cellSize = 64)
-        {
-            var area = new Area(name, description, areaSize, cellSize);
-            _definition.Areas[area.Id] = area;
-            OnChanged?.Invoke(_definition);
-            MarkDirty();
-            return area;
-        }
-
-        public Area AddArea(string name, string description, int width, int height, int cellSize = 64)
-        {
-            var area = new Area(name, description, new Size(width, height), cellSize);
-            area.TileMaps[0] = new TileMap("Default", $"{name} map", 0, area.Size);
-            _definition.Areas[area.Id] = area;
-            OnChanged?.Invoke(_definition);
-            MarkDirty();
-            return area;
-        }
-
-        public void RemoveArea(int areaId)
-        {
-            _definition.Areas.Remove(areaId);
-            OnChanged?.Invoke(_definition);
-            MarkDirty();
-        }
-
-        public List<string?> GetTileImageFilenames()
-        {
-            // Return all unique image filenames from all tile palettes
-            var filenames = new HashSet<string?>();
-            foreach (var area in _definition.Areas.Values)
+            if (area.TilePalette.ContainsKey(tile.Id))
             {
-                foreach (var tile in area.TilePalette.Values)
-                {
-                    if (!string.IsNullOrEmpty(tile.Image))
-                        filenames.Add(tile.Image);
-                }
+                // If tile already exists, skip it
+                continue;
             }
-            return filenames.ToList();
+            area.TilePalette[tile.Id] = tile;
         }
+        await SaveAsync();
+        OnChanged?.Invoke(_definition);
+        return tiles;
+    }
 
-        public Dictionary<int, Tile> ExtractTilesFromImage(string filename)
-        {
-            if (string.IsNullOrWhiteSpace(filename)) throw new ArgumentException("Filename cannot be null or empty.", nameof(filename));
-            var baseName = System.IO.Path.GetFileNameWithoutExtension(filename);
-            var imagePath = System.IO.Path.Combine("wwwroot", "tilesets", baseName + ".png");
-            var jsonPath = System.IO.Path.Combine("wwwroot", "tilesets", baseName + ".json");
-
-            if (!System.IO.File.Exists(imagePath)) throw new FileNotFoundException($"Image file not found: {imagePath}");
-            if (!System.IO.File.Exists(jsonPath)) throw new FileNotFoundException($"JSON file not found: {jsonPath}");
-
-            var json = System.IO.File.ReadAllText(jsonPath);
-            var doc = JsonDocument.Parse(json);
-            var tiles = doc.RootElement.GetProperty("tiles");
-            var cellSizeVal = doc.RootElement.GetProperty("cellSize").GetInt32();
-            var cellSize = new Size
-            {
-                Width = cellSizeVal,
-                Height = cellSizeVal
-            };
-
-            var result = new Dictionary<int, Tile>();
-            using (var image = Image.Load<Rgba32>(imagePath))
-            {
-                foreach (var tileElem in tiles.EnumerateArray())
-                {
-                    string name = tileElem.GetProperty("name").GetString() ?? "tile";
-                    string description = tileElem.GetProperty("description").GetString() ?? string.Empty;
-                    int w = tileElem.GetProperty("w").GetInt32();
-                    int h = tileElem.GetProperty("h").GetInt32();
-                    int x = tileElem.GetProperty("x").GetInt32();
-                    int y = tileElem.GetProperty("y").GetInt32();
-
-                    var rect = new SixLabors.ImageSharp.Rectangle(
-                        x * cellSize.Width,
-                        y * cellSize.Height,
-                        w * cellSize.Width,
-                        h * cellSize.Height
-                    );
-
-                    using (var tileImg = image.Clone(ctx => ctx.Crop(rect)))
-                    using (var ms = new MemoryStream())
-                    {
-                        tileImg.Save(ms, new PngEncoder());
-                        var base64 = Convert.ToBase64String(ms.ToArray());
-                        var base64Url = $"data:image/png;base64,{base64}";
-                        var tile = new Tile(name, description, "default", base64Url, new Size(w, h));
-                        result.Add(tile.Id, tile);
-                    }
-                }
-            }
-            return result;
-        }
-
-        public async Task<Dictionary<int, Tile>> AddTilePaletteToArea(Area area, string filename, int cellWidth = 64, int cellHeight = 64)
-        {
-            var baseName = System.IO.Path.GetFileNameWithoutExtension(filename);
-            var jsonPath = System.IO.Path.Combine("wwwroot", "tilesets", baseName + ".json");
-            Dictionary<int, Tile> tiles = new Dictionary<int, Tile>();
-            if (System.IO.File.Exists(jsonPath))
-            {
-                tiles = ExtractTilesFromImage(filename);
-            }
-            else
-            {
-                // Fallback: treat as a single tile
-                var imagePath = System.IO.Path.Combine("wwwroot", "tilesets", filename);
-                if (!System.IO.File.Exists(imagePath))
-                    throw new FileNotFoundException($"Image file not found: {imagePath}");
-                using var image = Image.Load<Rgba32>(imagePath);
-                using var ms = new MemoryStream();
-                image.Save(ms, new PngEncoder());
-                var base64 = $"data:image/png;base64,{Convert.ToBase64String(ms.ToArray())}";
-                var tile = new Tile(baseName, $"Imported from {filename}", "default", base64, new Size(cellWidth, cellHeight));
-                tiles = new Dictionary<int, Tile>
-                {
-                    { tile.Id, tile }
-                };
-            }
-            foreach (var tile in tiles.Values)
-            {
-                if (area.TilePalette.ContainsKey(tile.Id))
-                {
-                    // If tile already exists, skip it
-                    continue;
-                }
-                area.TilePalette[tile.Id] = tile;
-            }
-            await SaveAsync();
-            OnChanged?.Invoke(_definition);
-            return tiles;
-        }
-
-        public void Dispose()
-        {
-            _db.Dispose();
-        }
+    public void Dispose()
+    {
+        _db.Dispose();
     }
 }
