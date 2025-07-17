@@ -110,8 +110,8 @@ public class DefinitionManager : IDisposable
         _tileRedoStack.Clear();
         map[x, y] = newTile;
         map.Tiles = map.Tiles.ToArray(); // force Blazor update
-        OnChanged?.Invoke(_definition);
         MarkDirty();
+        OnChanged?.Invoke(_definition);
     }
 
     public void UndoTileEdit()
@@ -149,8 +149,8 @@ public class DefinitionManager : IDisposable
     {
         var area = new Area(name, description, areaSize, cellSize);
         _definition.Areas[area.Id] = area;
-        OnChanged?.Invoke(_definition);
         MarkDirty();
+        OnChanged?.Invoke(_definition);
         return area;
     }
 
@@ -159,16 +159,16 @@ public class DefinitionManager : IDisposable
         var area = new Area(name, description, new Size(width, height), cellSize);
         area.TileMaps[0] = new TileMap("Default", $"{name} map", 0, area.Size);
         _definition.Areas[area.Id] = area;
-        OnChanged?.Invoke(_definition);
         MarkDirty();
+        OnChanged?.Invoke(_definition);
         return area;
     }
 
     public void RemoveArea(int areaId)
     {
         _definition.Areas.Remove(areaId);
-        OnChanged?.Invoke(_definition);
         MarkDirty();
+        OnChanged?.Invoke(_definition);
     }
 
     public List<string?> GetTileImageFilenames()
@@ -274,6 +274,7 @@ public class DefinitionManager : IDisposable
             area.TilePalette[tile.Id] = tile;
         }
         await SaveAsync();
+        MarkDirty();
         OnChanged?.Invoke(_definition);
         return tiles;
     }

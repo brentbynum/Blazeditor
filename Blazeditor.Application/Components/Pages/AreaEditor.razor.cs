@@ -27,6 +27,16 @@ public partial class AreaEditor : IDisposable
         Area = Definition.SelectedArea;
     }
 
+    protected override void OnInitialized()
+    {
+        Definition.OnChanged += HandleDefinitionChanged;
+    }
+
+    private void HandleDefinitionChanged(Blazeditor.Application.Models.Definition definition)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
     public void OnTileSelected(int tileId)
     {
         SelectedTile = Area?.TilePalette[tileId];
@@ -114,8 +124,16 @@ public partial class AreaEditor : IDisposable
             await JS.InvokeVoidAsync("areaEditorKeyboard.init", dotNetRef);
         }
     }
+
+    public async Task SaveDefinitionAsync()
+    {
+        await Definition.SaveAsync();
+        StateHasChanged();
+    }
+
     public void Dispose()
     {
+        Definition.OnChanged -= HandleDefinitionChanged;
         if (dotNetRef != null)
         {
             JS.InvokeVoidAsync("areaEditorKeyboard.dispose");

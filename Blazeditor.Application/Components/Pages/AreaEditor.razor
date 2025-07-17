@@ -8,52 +8,6 @@
 @inject DefinitionManager Definition
 @inject IJSRuntime JS
 
-<style>
-    .area-editor-layout {
-        display: flex;
-        flex-direction: row;
-        width: 100%;
-        height: 100%;
-        min-height: 0;
-        min-width: 0;
-        background: #f8f9fa;
-        overflow: hidden;
-    }
-    .area-editor-canvas {
-        flex: 1 1 0;
-        min-width: 0;
-        height: 100%;
-        display: flex;
-        align-items: stretch;
-        justify-content: stretch;
-        background: #fff;
-        overflow: auto;
-    }
-    .area-editor-sidebar {
-        width: 400px;
-        max-width: 100vw;
-        height: 100%;
-        background: #f4f4f4;
-        border-left: 1px solid #ddd;
-        padding: 1rem;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-    }
-    .area-editor-title {
-        margin-bottom: 1rem;
-    }
-    .area-editor-selected-tile {
-        margin-top: 1rem;
-        text-align: center;
-    }
-    .area-editor-selected-tile img {
-        max-width: 100%;
-        height: auto;
-        margin-bottom: 0.5rem;
-    }
-</style>
-
 <div class="area-editor-layout">
     <div class="area-editor-canvas">
         @if (Area != null)
@@ -63,6 +17,16 @@
     </div>
     <div class="area-editor-sidebar">
         <h2 class="area-editor-title">@Area?.Name</h2>
+        @if (Definition.IsDirty)
+        {
+            <div class="alert alert-warning d-flex align-items-center py-1 px-2 mb-2">
+                <i class="bi bi-exclamation-circle me-2"></i>
+                <span>Unsaved changes</span>
+                <button class="btn btn-sm btn-primary ms-auto" @onclick="async () => await SaveDefinitionAsync()">
+                    <i class="bi bi-save"></i> Save
+                </button>
+            </div>
+        }
         @if (Area != null)
         {
             <TilePaletteCanvas Area="@Area" OnTileSelected="OnTileSelected" OnPaletteImport="OnPaletteImport" />
@@ -71,8 +35,10 @@
             {
                 <div class="area-editor-selected-tile">
                     <h3>@SelectedTile.Name</h3>
-                    <img src="@SelectedTile.Image" />
-                    <button class="btn btn-danger mt-2" @onclick="async () => await DeleteSelectedTile()"><i class="bi bi-trash"></i> Delete Tile</button>
+                    <div class="area-editor-selected-tile-control">
+                        <img src="@SelectedTile.Image" alt="@SelectedTile.Description" />
+                        <button class="btn btn-danger mt-2" @onclick="async () => await DeleteSelectedTile()"><i class="bi bi-trash"></i> Delete Tile</button>
+                    </div>
                 </div>
             }
         }
