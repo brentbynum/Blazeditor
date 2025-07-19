@@ -364,3 +364,5 @@ FodyWeavers.xsd
 
 #Lite-DB
 *.db
+
+*Media/*
