@@ -1,8 +1,7 @@
 using Blazeditor.Application.Models;
-using Blazeditor.Application.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
-using System.Collections.Generic;
+
 using System.Text.Json;
 
 namespace Blazeditor.Application.Components.Dialogs;
@@ -18,6 +17,7 @@ public partial class TileMapCanvas : IDisposable
     private List<Coordinate> SelectedCells { get; set; } = new();
 
     private bool _shouldInitJs = false;
+    private bool _shouldInitMap = true; // Flag to re-initialize map
     private bool _firstRenderDone = false;
 
     protected override void OnParametersSet()
@@ -39,9 +39,14 @@ public partial class TileMapCanvas : IDisposable
         }
         if (_firstRenderDone && _shouldInitJs && Area != null && Area.TileMaps != null && Area.TilePalette != null && JS != null)
         {
+            if (_shouldInitMap)
+            {
+                // The map only ever gets init-ed once, and the tilemaps get synched manually on add/remove
+                await JS.InvokeVoidAsync("tileMapCanvas.init", canvasRef, Area.TileMaps, Area.CellSize, Area.Size, Area.TilePalette);
+                _shouldInitMap = false; // Reset flag after initialization
+            }
             await JS.InvokeVoidAsync("tileMapCanvas.setSelectedTileId", SelectedTileId);
             await JS.InvokeVoidAsync("tileMapCanvas.setActiveLevel", ActiveLevel);
-            await JS.InvokeVoidAsync("tileMapCanvas.init", canvasRef, Area.TileMaps, Area.CellSize, Area.Size, Area.TilePalette);
             _shouldInitJs = false;
         }
     }
@@ -60,7 +65,7 @@ public partial class TileMapCanvas : IDisposable
                     {
                         if (cell.X >= 0 && cell.X < width && cell.Y >= 0 && cell.Y < height)
                         {
-                            map[cell.X, cell.Y] = null;
+                            map.SetPlacement(cell.X, cell.Y, null);
                         }
                     }
                 }
@@ -73,7 +78,7 @@ public partial class TileMapCanvas : IDisposable
                     {
                         for (int x = 0; x < width; x++)
                         {
-                            tileMap[x, y] = null;
+                            tileMap.SetPlacement(x, y, null);
                         }
                     }
                 }
@@ -83,7 +88,11 @@ public partial class TileMapCanvas : IDisposable
             {
                 if (JS != null)
                 {
-                    JS.InvokeVoidAsync("tileMapCanvas.updateTileMaps", Area.TileMaps);
+                    var tilePlacementsByLevel = Area.TileMaps.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.TilePlacements.Values.ToList()
+                    );
+                    JS.InvokeVoidAsync("tileMapCanvas.updateTileMaps", tilePlacementsByLevel);
                 }
                 StateHasChanged();
             });
@@ -106,7 +115,7 @@ public partial class TileMapCanvas : IDisposable
         {
             if (tile == null)
                 return;
-            Definition.ExecuteTileEdit(areaId.Value, level, x, y, tile);
+            
             InvokeAsync(() =>
             {
                 if (JS != null)
@@ -116,9 +125,10 @@ public partial class TileMapCanvas : IDisposable
                 }
                 StateHasChanged();
             });
-            
+            Definition.ExecuteTileEdit(areaId.Value, level, x, y, tile);
         }
     }
+
 
     [JSInvokable]
     public void OnJsFill(int tileId, int x, int y, int level, bool ctrlKey)
@@ -126,44 +136,80 @@ public partial class TileMapCanvas : IDisposable
         var updates = new List<object>();
         if (Area?.TilePalette == null || !Area.TilePalette.ContainsKey(tileId))
             return;
-        int width = Area.Size.Width;
-        int height = Area.Size.Height;
+        int mapWidth = Area.Size.Width;
+        int mapHeight = Area.Size.Height;
+        var tile = Area.TilePalette[tileId];
+        int tileWidth = tile.Size.Width;
+        int tileHeight = tile.Size.Height;
         if (Area.TileMaps != null && Area.TileMaps.TryGetValue(level, out var map))
         {
+            int selMinX, selMaxX, selMinY, selMaxY;
             if (SelectedCells != null && SelectedCells.Count > 0)
             {
-                foreach (var cell in SelectedCells)
-                {
-                    if (cell.X >= 0 && cell.X < width && cell.Y >= 0 && cell.Y < height)
-                    {
-                        var oldTile = map[cell.X, cell.Y];
-                        if (ctrlKey && oldTile != null)
-                            continue; // Only fill if cell is empty
-                        var tile = Area.TilePalette[tileId];
-                        map[cell.X, cell.Y] = tile;
-                        updates.Add(new { x = cell.X, y = cell.Y, level, tileId });
-                    }
-                }
+                selMinX = SelectedCells.Min(c => c.X);
+                selMaxX = SelectedCells.Max(c => c.X);
+                selMinY = SelectedCells.Min(c => c.Y);
+                selMaxY = SelectedCells.Max(c => c.Y);
             }
             else
             {
-                if (x >= 0 && x < width && y >= 0 && y < height)
+                selMinX = 0;
+                selMaxX = mapWidth - 1;
+                selMinY = 0;
+                selMaxY = mapHeight - 1;
+            }
+            // Calculate fillable area
+            int fillWidth = ((selMaxX - selMinX + 1) / tileWidth) * tileWidth;
+            int fillHeight = ((selMaxY - selMinY + 1) / tileHeight) * tileHeight;
+            for (int fy = selMinY; fy < selMinY + fillHeight; fy += tileHeight)
+            {
+                for (int fx = selMinX; fx < selMinX + fillWidth; fx += tileWidth)
                 {
-                    for (var ty = 0; ty < height; ty++)
+                    // Check if all cells for this tile placement are within selection
+                    bool fits = true;
+                    for (int ty = 0; ty < tileHeight && fits; ty++)
                     {
-                        for (var tx = 0; tx < width; tx++)
+                        for (int tx = 0; tx < tileWidth && fits; tx++)
                         {
-                            var oldTile = map[tx, ty];
-                            if (ctrlKey && oldTile != null)
-                                return; // Only fill if cell is empty
-                            if (oldTile?.Id != tileId)
+                            int cx = fx + tx;
+                            int cy = fy + ty;
+                            if (cx < 0 || cx >= mapWidth || cy < 0 || cy >= mapHeight)
                             {
-                                var tile = Area.TilePalette[tileId];
-                                map[tx, ty] = tile;
-                                updates.Add(new { tx, ty, level, tileId });
+                                fits = false;
+                                break;
+                            }
+                            if (SelectedCells != null && SelectedCells.Count > 0)
+                            {
+                                if (!SelectedCells.Any(c => c.X == cx && c.Y == cy && c.Level == level))
+                                {
+                                    fits = false;
+                                    break;
+                                }
                             }
                         }
                     }
+                    if (!fits) continue;
+                    // Only fill if empty if ctrlKey is pressed
+                    bool skip = false;
+                    for (int ty = 0; ty < tileHeight && !skip; ty++)
+                    {
+                        for (int tx = 0; tx < tileWidth && !skip; tx++)
+                        {
+                            var placement = map.GetPlacement(fx + tx, fy + ty);
+                            if (ctrlKey && placement != null && placement.TileId.HasValue)
+                                skip = true;
+                        }
+                    }
+                    if (skip) continue;
+                    // Place the tile
+                    for (int ty = 0; ty < tileHeight; ty++)
+                    {
+                        for (int tx = 0; tx < tileWidth; tx++)
+                        {
+                            map.SetPlacement(fx + tx, fy + ty, tileId);
+                        }
+                    }
+                    updates.Add(new { x = fx, y = fy, level, tileId });
                 }
             }
         }
@@ -182,8 +228,7 @@ public partial class TileMapCanvas : IDisposable
     {
         if (Area != null && Area.TileMaps != null && Area.TileMaps.TryGetValue(level, out var map))
         {
-            map[x, y] = null;
-            map.Tiles = map.Tiles.ToArray();
+            map.SetPlacement(x, y, null);
             InvokeAsync(() =>
             {
                 if (JS != null)

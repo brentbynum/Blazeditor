@@ -1,0 +1,741 @@
+{
+    "cellSize": 64,
+    "tiles": [
+        {
+            "name": "oak_b",
+            "description": "oak_b.",
+            "x": 0,
+            "y": 0,
+            "w": 8,
+            "h": 8
+        },
+        {
+            "name": "pine_cospse_a",
+            "description": "pine_cospse_a.",
+            "x": 0,
+            "y": 8,
+            "w": 6,
+            "h": 8
+        },
+        {
+            "name": "oak_sapling_a",
+            "description": "oak_sapling_a.",
+            "x": 0,
+            "y": 16,
+            "w": 7,
+            "h": 6
+        },
+        {
+            "name": "maple_b",
+            "description": "maple_b.",
+            "x": 6,
+            "y": 8,
+            "w": 6,
+            "h": 6
+        },
+        {
+            "name": "oak_tree_a",
+            "description": "oak_tree_a.",
+            "x": 8,
+            "y": 0,
+            "w": 6,
+            "h": 6
+        },
+        {
+            "name": "dogwood_A",
+            "description": "dogwood_A.",
+            "x": 0,
+            "y": 22,
+            "w": 6,
+            "h": 5
+        },
+        {
+            "name": "maple_a",
+            "description": "maple_a.",
+            "x": 6,
+            "y": 22,
+            "w": 5,
+            "h": 6
+        },
+        {
+            "name": "Paint_Layer_1_(pasted)",
+            "description": "Paint_Layer_1_(pasted).",
+            "x": 7,
+            "y": 14,
+            "w": 5,
+            "h": 6
+        },
+        {
+            "name": "willow_a",
+            "description": "willow_a.",
+            "x": 11,
+            "y": 20,
+            "w": 5,
+            "h": 6
+        },
+        {
+            "name": "fallen_tree_a",
+            "description": "fallen_tree_a.",
+            "x": 0,
+            "y": 27,
+            "w": 6,
+            "h": 4
+        },
+        {
+            "name": "spruce_b",
+            "description": "spruce_b.",
+            "x": 11,
+            "y": 26,
+            "w": 4,
+            "h": 5
+        },
+        {
+            "name": "larch_a",
+            "description": "larch_a.",
+            "x": 15,
+            "y": 26,
+            "w": 3,
+            "h": 6
+        },
+        {
+            "name": "spruce_a",
+            "description": "spruce_a.",
+            "x": 12,
+            "y": 6,
+            "w": 3,
+            "h": 6
+        },
+        {
+            "name": "gnarled_oak_a",
+            "description": "gnarled_oak_a.",
+            "x": 6,
+            "y": 28,
+            "w": 3,
+            "h": 4
+        },
+        {
+            "name": "juniper_row_a",
+            "description": "juniper_row_a.",
+            "x": 14,
+            "y": 0,
+            "w": 6,
+            "h": 2
+        },
+        {
+            "name": "cooking_pot_a",
+            "description": "cooking_pot_a.",
+            "x": 14,
+            "y": 2,
+            "w": 3,
+            "h": 3
+        },
+        {
+            "name": "drying_rack_a",
+            "description": "drying_rack_a.",
+            "x": 12,
+            "y": 12,
+            "w": 3,
+            "h": 3
+        },
+        {
+            "name": "maple_sapling_b",
+            "description": "maple_sapling_b.",
+            "x": 12,
+            "y": 15,
+            "w": 3,
+            "h": 3
+        },
+        {
+            "name": "oak_sapling_b",
+            "description": "oak_sapling_b.",
+            "x": 20,
+            "y": 0,
+            "w": 3,
+            "h": 3
+        },
+        {
+            "name": "tent_a",
+            "description": "tent_a.",
+            "x": 17,
+            "y": 2,
+            "w": 3,
+            "h": 3
+        },
+        {
+            "name": "juniper_row_b",
+            "description": "juniper_row_b.",
+            "x": 12,
+            "y": 18,
+            "w": 4,
+            "h": 2
+        },
+        {
+            "name": "birch_sapling_a",
+            "description": "birch_sapling_a.",
+            "x": 9,
+            "y": 28,
+            "w": 2,
+            "h": 3
+        },
+        {
+            "name": "camp_table_a",
+            "description": "camp_table_a.",
+            "x": 8,
+            "y": 6,
+            "w": 3,
+            "h": 2
+        },
+        {
+            "name": "fallen_log_a",
+            "description": "fallen_log_a.",
+            "x": 7,
+            "y": 20,
+            "w": 3,
+            "h": 2
+        },
+        {
+            "name": "fallen_log_b",
+            "description": "fallen_log_b.",
+            "x": 23,
+            "y": 0,
+            "w": 3,
+            "h": 2
+        },
+        {
+            "name": "lean_to_a",
+            "description": "lean_to_a.",
+            "x": 26,
+            "y": 0,
+            "w": 3,
+            "h": 2
+        },
+        {
+            "name": "oak_sapling_c",
+            "description": "oak_sapling_c.",
+            "x": 29,
+            "y": 0,
+            "w": 2,
+            "h": 3
+        },
+        {
+            "name": "sunflower_a",
+            "description": "sunflower_a.",
+            "x": 23,
+            "y": 2,
+            "w": 2,
+            "h": 3
+        },
+        {
+            "name": "bedroll_a",
+            "description": "bedroll_a.",
+            "x": 20,
+            "y": 3,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "berry_bush_a",
+            "description": "berry_bush_a.",
+            "x": 25,
+            "y": 2,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "berry_bush_b",
+            "description": "berry_bush_b.",
+            "x": 27,
+            "y": 2,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "blueberry_bush_a",
+            "description": "blueberry_bush_a.",
+            "x": 29,
+            "y": 3,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "gamble_oak_a",
+            "description": "gamble_oak_a.",
+            "x": 25,
+            "y": 4,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "grass_base_a",
+            "description": "grass_base_a.",
+            "x": 27,
+            "y": 4,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "hazel_bush_a",
+            "description": "hazel_bush_a.",
+            "x": 29,
+            "y": 5,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "juniper_bush_a",
+            "description": "juniper_bush_a.",
+            "x": 18,
+            "y": 5,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "palmetto_a",
+            "description": "palmetto_a.",
+            "x": 16,
+            "y": 5,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "palmetto_b",
+            "description": "palmetto_b.",
+            "x": 20,
+            "y": 5,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "red_rose_bush_a",
+            "description": "red_rose_bush_a.",
+            "x": 22,
+            "y": 5,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "rhododendron_a",
+            "description": "rhododendron_a.",
+            "x": 24,
+            "y": 6,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "rocky_outcrop_a",
+            "description": "rocky_outcrop_a.",
+            "x": 26,
+            "y": 6,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "rocky_outcrop_b",
+            "description": "rocky_outcrop_b.",
+            "x": 28,
+            "y": 7,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "rocky_outcrop_c",
+            "description": "rocky_outcrop_c.",
+            "x": 30,
+            "y": 7,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "rock_outcrop_b",
+            "description": "rock_outcrop_b.",
+            "x": 18,
+            "y": 7,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "rock_slab_a",
+            "description": "rock_slab_a.",
+            "x": 16,
+            "y": 7,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "spiny_shrub_a",
+            "description": "spiny_shrub_a.",
+            "x": 20,
+            "y": 7,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "supply_box_a",
+            "description": "supply_box_a.",
+            "x": 22,
+            "y": 7,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "sword_fern_a",
+            "description": "sword_fern_a.",
+            "x": 24,
+            "y": 8,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "sword_palm_b",
+            "description": "sword_palm_b.",
+            "x": 26,
+            "y": 8,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "tree_stump_a",
+            "description": "tree_stump_a.",
+            "x": 28,
+            "y": 9,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "woodpile_a",
+            "description": "woodpile_a.",
+            "x": 30,
+            "y": 9,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "yellow_row_bush_a",
+            "description": "yellow_row_bush_a.",
+            "x": 18,
+            "y": 9,
+            "w": 2,
+            "h": 2
+        },
+        {
+            "name": "thorny_vine_a",
+            "description": "thorny_vine_a.",
+            "x": 15,
+            "y": 9,
+            "w": 3,
+            "h": 1
+        },
+        {
+            "name": "clover_row_a",
+            "description": "clover_row_a.",
+            "x": 16,
+            "y": 10,
+            "w": 2,
+            "h": 1
+        },
+        {
+            "name": "clover_row_b",
+            "description": "clover_row_b.",
+            "x": 14,
+            "y": 5,
+            "w": 2,
+            "h": 1
+        },
+        {
+            "name": "grassy_mound_A",
+            "description": "grassy_mound_A.",
+            "x": 0,
+            "y": 31,
+            "w": 2,
+            "h": 1
+        },
+        {
+            "name": "grassy_mound_b",
+            "description": "grassy_mound_b.",
+            "x": 2,
+            "y": 31,
+            "w": 2,
+            "h": 1
+        },
+        {
+            "name": "morning_glory_row",
+            "description": "morning_glory_row.",
+            "x": 4,
+            "y": 31,
+            "w": 2,
+            "h": 1
+        },
+        {
+            "name": "mossy_rock_c",
+            "description": "mossy_rock_c.",
+            "x": 9,
+            "y": 31,
+            "w": 2,
+            "h": 1
+        },
+        {
+            "name": "Background",
+            "description": "Background.",
+            "x": 31,
+            "y": 0,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "buttercup_a",
+            "description": "buttercup_a.",
+            "x": 31,
+            "y": 1,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "cornflower_a",
+            "description": "cornflower_a.",
+            "x": 31,
+            "y": 2,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "dandelion_a",
+            "description": "dandelion_a.",
+            "x": 31,
+            "y": 3,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "dandelion_b",
+            "description": "dandelion_b.",
+            "x": 31,
+            "y": 4,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "daylily_a",
+            "description": "daylily_a.",
+            "x": 31,
+            "y": 5,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "daylily_b",
+            "description": "daylily_b.",
+            "x": 31,
+            "y": 6,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "fly_agaric_a",
+            "description": "fly_agaric_a.",
+            "x": 22,
+            "y": 3,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "fly_agaric_b",
+            "description": "fly_agaric_b.",
+            "x": 22,
+            "y": 4,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "hyacinth_a",
+            "description": "hyacinth_a.",
+            "x": 24,
+            "y": 5,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "hyacinth_b",
+            "description": "hyacinth_b.",
+            "x": 28,
+            "y": 6,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "hyacinth_c",
+            "description": "hyacinth_c.",
+            "x": 15,
+            "y": 6,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "iris_a",
+            "description": "iris_a.",
+            "x": 15,
+            "y": 7,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "iris_b",
+            "description": "iris_b.",
+            "x": 15,
+            "y": 8,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "iris_c",
+            "description": "iris_c.",
+            "x": 15,
+            "y": 10,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "iris_d",
+            "description": "iris_d.",
+            "x": 11,
+            "y": 6,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "lantern_a",
+            "description": "lantern_a.",
+            "x": 11,
+            "y": 7,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "lily_of_the_valley_a",
+            "description": "lily_of_the_valley_a.",
+            "x": 10,
+            "y": 20,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "marigold_a",
+            "description": "marigold_a.",
+            "x": 10,
+            "y": 21,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "marigold_b",
+            "description": "marigold_b.",
+            "x": 6,
+            "y": 14,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "mossy_rock_a",
+            "description": "mossy_rock_a.",
+            "x": 6,
+            "y": 15,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "mossy_rock_b",
+            "description": "mossy_rock_b.",
+            "x": 11,
+            "y": 31,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "mushroom_bunch_a",
+            "description": "mushroom_bunch_a.",
+            "x": 12,
+            "y": 31,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "pebbles_a",
+            "description": "pebbles_a.",
+            "x": 13,
+            "y": 31,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "pincone_cluster_a",
+            "description": "pincone_cluster_a.",
+            "x": 14,
+            "y": 31,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "pine_needles_a",
+            "description": "pine_needles_a.",
+            "x": 20,
+            "y": 9,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "puffball_a",
+            "description": "puffball_a.",
+            "x": 21,
+            "y": 9,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "puffball_b",
+            "description": "puffball_b.",
+            "x": 22,
+            "y": 9,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "red_columbine_a",
+            "description": "red_columbine_a.",
+            "x": 23,
+            "y": 9,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "trillium_cluster_a",
+            "description": "trillium_cluster_a.",
+            "x": 15,
+            "y": 11,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "twigs_a",
+            "description": "twigs_a.",
+            "x": 15,
+            "y": 12,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "violet_flower_patch_a",
+            "description": "violet_flower_patch_a.",
+            "x": 15,
+            "y": 13,
+            "w": 1,
+            "h": 1
+        },
+        {
+            "name": "water_pail_a",
+            "description": "water_pail_a.",
+            "x": 15,
+            "y": 14,
+            "w": 1,
+            "h": 1
+        }
+    ]
+}

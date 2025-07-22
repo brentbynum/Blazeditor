@@ -42,18 +42,58 @@ public class DefinitionManager : IDisposable
         LoadDefinitionAsync().GetAwaiter().GetResult();
     }
 
+    public void ExecuteTileEdit(int areaId, int level, int x, int y, Tile? newTile)
+    {
+        if (!_definition.Areas.TryGetValue(areaId, out var area)) return;
+        if (!area.TileMaps.TryGetValue(level, out var map)) return;
+        var oldPlacement = map.GetPlacement(x, y);
+        var oldTile = oldPlacement != null && oldPlacement.TileId.HasValue && area.TilePalette.TryGetValue(oldPlacement.TileId.Value, out var t) ? t : null;
+        var undo = new TileEditUndo
+        {
+            AreaId = areaId,
+            TileMapLevel = level,
+            X = x,
+            Y = y,
+            OldTile = oldTile,
+            NewTile = newTile
+        };
+        _tileUndoStack.Push(undo);
+        _tileRedoStack.Clear();
+        map.SetPlacement(x, y, newTile?.Id);
+        MarkDirty();
+        OnChanged?.Invoke(_definition);
+    }
+
+    public void UndoTileEdit()
+    {
+        if (_tileUndoStack.Count == 0) return;
+        var edit = _tileUndoStack.Pop();
+        if (!_definition.Areas.TryGetValue(edit.AreaId, out var area)) return;
+        if (!area.TileMaps.TryGetValue(edit.TileMapLevel, out var map)) return;
+        map.SetPlacement(edit.X, edit.Y, edit.OldTile?.Id);
+        _tileRedoStack.Push(edit);
+        MarkDirty();
+        OnChanged?.Invoke(_definition);
+    }
+
+    public void RedoTileEdit()
+    {
+        if (_tileRedoStack.Count == 0) return;
+        var edit = _tileRedoStack.Pop();
+        if (!_definition.Areas.TryGetValue(edit.AreaId, out var area)) return;
+        if (!area.TileMaps.TryGetValue(edit.TileMapLevel, out var map)) return;
+        map.SetPlacement(edit.X, edit.Y, edit.NewTile?.Id);
+        _tileUndoStack.Push(edit);
+        MarkDirty();
+        OnChanged?.Invoke(_definition);
+    }
+
     public virtual async Task SaveAsync()
     {
         try
         {
             var col = _db.GetCollection<Definition>("definitions");
-            foreach (var area in _definition.Areas)
-            {
-                foreach (var tileMap in area.Value.TileMaps)
-                {
-                    tileMap.Value.UpdateTilePlacements();
-                }
-            }
+            // No need to update TilePlacements
             col.Upsert(_userKey, _definition);
             _db.Checkpoint();
             IsDirty = false;
@@ -78,7 +118,7 @@ public class DefinitionManager : IDisposable
                 foreach (var tileMap in area.Value.TileMaps)
                 {
                     tileMap.Value.Resize(area.Value.Size);
-                    tileMap.Value.RebuildTiles(area.Value.TilePalette);
+                    // No need to rebuild Tiles
                 }
             }
             IsDirty = false;
@@ -91,54 +131,6 @@ public class DefinitionManager : IDisposable
     }
 
     private void MarkDirty() => IsDirty = true;
-
-    public void ExecuteTileEdit(int areaId, int level, int x, int y, Tile? newTile)
-    {
-        if (!_definition.Areas.TryGetValue(areaId, out var area)) return;
-        if (!area.TileMaps.TryGetValue(level, out var map)) return;
-        var oldTile = map[x, y];
-        var undo = new TileEditUndo
-        {
-            AreaId = areaId,
-            TileMapLevel = level,
-            X = x,
-            Y = y,
-            OldTile = oldTile,
-            NewTile = newTile
-        };
-        _tileUndoStack.Push(undo);
-        _tileRedoStack.Clear();
-        map[x, y] = newTile;
-        map.Tiles = map.Tiles.ToArray(); // force Blazor update
-        MarkDirty();
-        OnChanged?.Invoke(_definition);
-    }
-
-    public void UndoTileEdit()
-    {
-        if (_tileUndoStack.Count == 0) return;
-        var edit = _tileUndoStack.Pop();
-        if (!_definition.Areas.TryGetValue(edit.AreaId, out var area)) return;
-        if (!area.TileMaps.TryGetValue(edit.TileMapLevel, out var map)) return;
-        map[edit.X, edit.Y] = edit.OldTile;
-        map.Tiles = map.Tiles.ToArray();
-        _tileRedoStack.Push(edit);
-        MarkDirty();
-        OnChanged?.Invoke(_definition);
-    }
-
-    public void RedoTileEdit()
-    {
-        if (_tileRedoStack.Count == 0) return;
-        var edit = _tileRedoStack.Pop();
-        if (!_definition.Areas.TryGetValue(edit.AreaId, out var area)) return;
-        if (!area.TileMaps.TryGetValue(edit.TileMapLevel, out var map)) return;
-        map[edit.X, edit.Y] = edit.NewTile;
-        map.Tiles = map.Tiles.ToArray();
-        _tileUndoStack.Push(edit);
-        MarkDirty();
-        OnChanged?.Invoke(_definition);
-    }
 
     public IEnumerable<Area> GetAreas()
     {

@@ -17,82 +17,55 @@ public class TileMap : BaseEntity
     {
         Level = level;
         _size = size;
-        TilePlacements = new List<TilePlacement>(size.Width * size.Height);
-        Tiles = new Tile?[size.Width * size.Height];
+        TilePlacements = new Dictionary<int, TilePlacement>(size.Width * size.Height);
     }
     public int Level { get; set; }
     // Store tile placements for persistence
-    public List<TilePlacement> TilePlacements { get; set; } = new List<TilePlacement>();
+    public Dictionary<int, TilePlacement> TilePlacements { get; set; } = new();
 
-    private Tile?[] _tiles = Array.Empty<Tile?>();
-    [BsonIgnore]
-    // runtime tiles array, not serialized
-    public Tile?[] Tiles
-    {
-        get { return _tiles; }
-        set { _tiles = value; }
-    }
-    [BsonIgnore]
-    // runtime tiles access, not serialized
-    public Tile? this[int x, int y]
-    {
-        get
-        {
-            if (x < 0 || y < 0 || Tiles == null || x >= _size.Width || y * _size.Width + x >= Tiles.Length)
-                return null;
-            return Tiles[y * _size.Width + x];
-        }
-        set
-        {
-            if (x < 0 || y < 0 || Tiles == null || x >= _size.Width || y * _size.Width + x >= Tiles.Length)
-                return;
-            Tiles[y * _size.Width + x] = value;
-        }
-    }
+    public Size Size => _size;
+
+    private int GetKey(int x, int y) => x + y * _size.Width;
+
     public void Resize(Size newSize)
     {
         if (newSize.Width <= 0 || newSize.Height <= 0)
             throw new ArgumentException("Size must be greater than zero.");
         _size = newSize;
-        Tiles = new Tile?[newSize.Width * newSize.Height];
-        // Optionally: repopulate TilePlacements from Tiles if needed
-    }
-    // Call this before serialization to update TilePlacements from Tiles
-    public void UpdateTilePlacements()
-    {
-        TilePlacements.Clear();
-        for (int y = 0; y < _size.Height; y++)
-        {
-            for (int x = 0; x < _size.Width; x++)
+        // Remove placements outside new bounds
+        var keysToRemove = TilePlacements.Keys.Where(k =>
             {
-                var tile = this[x, y];
-                if (tile != null)
-                {
-                    TilePlacements.Add(new TilePlacement
-                    {
-                        X = x,
-                        Y = y,
-                        TileId = tile?.Id
-                    });
-                }
-            }
+                int x = k % newSize.Width;
+                int y = k / newSize.Width;
+                return x >= newSize.Width || y >= newSize.Height;
+            }).ToList();
+        foreach (var key in keysToRemove)
+            TilePlacements.Remove(key);
+    }
+
+    // Get tile placement at (x, y)
+    public TilePlacement? GetPlacement(int x, int y)
+    {
+        TilePlacements.TryGetValue(GetKey(x, y), out var placement);
+        return placement;
+    }
+
+    // Set or update tile placement at (x, y)
+    public void SetPlacement(int x, int y, int? tileId)
+    {
+        int key = GetKey(x, y);
+        if (TilePlacements.TryGetValue(key, out var placement))
+        {
+            placement.TileId = tileId;
         }
-        Console.WriteLine($"TilePlacements updated: {TilePlacements.Count} placements for map '{Name}' at level {Level}");
-    }
-    // Call this after deserialization to rebuild Tiles from TilePlacements
-    public void RebuildTiles(Dictionary<int, Tile> palette)
-    {
-        Tiles = new Tile?[_size.Width * _size.Height];
-        foreach (var placement in TilePlacements)
+        else if (tileId.HasValue)
         {
-            if (placement.TileId.HasValue && palette.TryGetValue(placement.TileId.Value, out var tile))
-            {
-                this[placement.X, placement.Y] = tile;
-            }
-            else
-            {
-                this[placement.X, placement.Y] = null;
-            }
+            TilePlacements[key] = new TilePlacement { X = x, Y = y, TileId = tileId };
+        }
+        else
+        {
+            // Remove placement if setting to null
+            TilePlacements.Remove(key);
         }
     }
 }

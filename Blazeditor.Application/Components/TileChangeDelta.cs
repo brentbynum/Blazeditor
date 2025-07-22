@@ -14,8 +14,7 @@ public class TileChangeDelta : IDefinitionDelta
         for (int i = 0; i < Changes.Count; i++)
         {
             var change = Changes[i];
-            var tile = change.NewTileId.HasValue ? area.TilePalette[change.NewTileId.Value] : null;
-            tileMap[change.X, change.Y] = tile;
+            tileMap.SetPlacement(change.X, change.Y, change.NewTileId);
         }
     }
     public void Revert(Definition definition)
@@ -25,8 +24,7 @@ public class TileChangeDelta : IDefinitionDelta
         for (int i = 0; i < Changes.Count; i++)
         {
             var change = Changes[i];
-            var tile = change.OldTileId.HasValue ? area.TilePalette[change.OldTileId.Value] : null;
-            tileMap[change.X, change.Y] = tile;
+            tileMap.SetPlacement(change.X, change.Y, change.OldTileId);
         }
     }
 }

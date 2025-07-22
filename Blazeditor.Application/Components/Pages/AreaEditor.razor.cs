@@ -15,6 +15,9 @@ public partial class AreaEditor : IDisposable
     private DotNetObjectReference<AreaEditor>? dotNetRef;
     private int? previousAreaId = null;
 
+    private TileMapCanvas? tileMapCanvas;
+    private TilePaletteCanvas? tilePaletteCanvas;
+
     protected override async Task OnParametersSetAsync()
     {
         // Auto-save if navigating to a new area and there are unsaved changes
@@ -47,17 +50,18 @@ public partial class AreaEditor : IDisposable
         ActiveLevel = level;
         StateHasChanged();
     }
-    public void OnAddLevel()
+    public async Task OnAddLevel()
     {
         if (Area != null)
         {
             int newLevel = Area.TileMaps.Count > 0 ? Area.TileMaps.Keys.Max() + 1 : 0;
             Area.TileMaps[newLevel] = new TileMap($"Level {newLevel}", $"Tile map for level {newLevel}", newLevel, Area.Size);
             ActiveLevel = newLevel;
+            await JS.InvokeVoidAsync("tileMapCanvas.updateTileMaps", Area.TileMaps);
             StateHasChanged();
         }
     }
-    public void OnRemoveLevel()
+    public async Task OnRemoveLevel()
     {
         if (Area != null && Area.TileMaps.Count > 1)
         {
@@ -65,6 +69,7 @@ public partial class AreaEditor : IDisposable
             {
                 Area.TileMaps.Remove(ActiveLevel);
                 ActiveLevel = Area.TileMaps.Keys.FirstOrDefault();
+                await JS.InvokeVoidAsync("tileMapCanvas.updateTileMaps", Area.TileMaps);
                 StateHasChanged();
             }
         }
@@ -86,7 +91,7 @@ public partial class AreaEditor : IDisposable
         {
             // Check if the tile is referenced in any TileMap
             bool isReferenced = Area.TileMaps.Values.Any(map =>
-                map.TilePlacements.Any(tp => tp.TileId == SelectedTile.Id));
+                map.TilePlacements.Values.Any(tp => tp.TileId == SelectedTile.Id));
             if (isReferenced)
             {
                 // Optionally, show a message to the user (could use a toast, dialog, etc.)

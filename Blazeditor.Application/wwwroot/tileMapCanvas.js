@@ -231,12 +231,12 @@
             if (positions.length) {
                 positions.forEach(pos => {
                     let map = tileMaps[pos.level]
-                    map.tiles[pos.x + (pos.y * mapSize.width)] = tilePalette[pos.tileId];
+                    map[pos.x + (pos.y * mapSize.width)] = pos;
                 });
             } else {
                 let pos = positions;
                 let map = tileMaps[pos.level]
-                map.tiles[pos.x + (pos.y * mapSize.width)] = tilePalette[pos.tileId];
+                map.tilePlacements[pos.x + (pos.y * mapSize.width)] = pos;
             }
         },
         setShowGrid: function (val) {
@@ -318,54 +318,54 @@
                 });
                 ctx.restore();
             }
-            // Draw tiles
-            for (let levelKey of Object.keys(tileMaps)) {
-                const tileMap = tileMaps[levelKey];
-                for (let y = 0; y < mapSize.height; y++) {
-                    for (let x = 0; x < mapSize.width; x++) {
-                        const idx = y * mapSize.width + x;
-                        const tile = tileMap.tiles ? tileMap.tiles[idx] : null;
-                        if (tile && !tile.layout) {
-                            let img = new window.Image();
-                            img.src = tile.image;
-                            tile.layout = {
-                                image: img
-                            }
-                            img.onload = () => { tile.layout.isLoaded = true; }
+            // Draw tiles (from TilePlacements)
+            for (let map of Object.values(tileMaps)) {
+                const tilePlacements = Object.values(map.tilePlacements);
+                if (!tilePlacements || !tilePlacements.length) continue;
+                for (let i = 0; i < tilePlacements.length; i++) {
+                    const placement = tilePlacements[i];
+                    if (!placement || placement.tileId == null) continue;
+                    const x = placement.x;
+                    const y = placement.y;
+                    const tile = tilePalette[placement.tileId];
+                    if (tile && !tile.layout) {
+                        let img = new window.Image();
+                        img.src = tile.image;
+                        tile.layout = {
+                            image: img
                         }
-                        if (tile && tile.image && tile.image.startsWith('data:image') && tile.layout.isLoaded) {
-                            ctx.drawImage(tile.layout.image, x * cellSize, y * cellSize, tile.size.width * cellSize, tile.size.height * cellSize);
-                        }
+                        img.onload = () => { tile.layout.isLoaded = true; }
+                    }
+                    if (tile && tile.image && tile.image.startsWith('data:image') && tile.layout.isLoaded) {
+                        ctx.drawImage(tile.layout.image, x * cellSize, y * cellSize, tile.size.width * cellSize, tile.size.height * cellSize);
                     }
                 }
             }
             // Draw grid and hovered cell
-            for (let levelKey of Object.keys(tileMaps)) {
-                for (let y = 0; y < mapSize.height; y++) {
-                    for (let x = 0; x < mapSize.width; x++) {
-                        // Draw a border around the whole grid
-                        ctx.save();
-                        ctx.strokeStyle = '#000';
-                        ctx.lineWidth = 3;
-                        ctx.strokeRect(0, 0, mapSize.width * cellSize, mapSize.height * cellSize);
-                        ctx.restore();
-                        if (showGrid) {
-                            // Draw grid
-                            ctx.strokeStyle = '#ccc';
+            for (let y = 0; y < mapSize.height; y++) {
+                for (let x = 0; x < mapSize.width; x++) {
+                    // Draw a border around the whole grid
+                    ctx.save();
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(0, 0, mapSize.width * cellSize, mapSize.height * cellSize);
+                    ctx.restore();
+                    if (showGrid) {
+                        // Draw grid
+                        ctx.strokeStyle = '#ccc';
+                        ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                        // Highlight hovered cell
+                        if (isMouseOver && x === hoveredCell.x && y === hoveredCell.y) {
+                            ctx.save();
+                            ctx.strokeStyle = '#ff0';
+                            ctx.lineWidth = 3;
                             ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
-                            // Highlight hovered cell
-                            if (isMouseOver && x === hoveredCell.x && y === hoveredCell.y && parseInt(levelKey) === hoveredCell.level) {
-                                ctx.save();
-                                ctx.strokeStyle = '#ff0';
-                                ctx.lineWidth = 3;
-                                ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
-                                ctx.restore();
-                            }
+                            ctx.restore();
                         }
-                        // Draw tile overlay for the hovered cell
-                        if (selectedTool.drawOverlay && x === hoveredCell.x && y === hoveredCell.y && parseInt(levelKey) === hoveredCell.level) {
-                            selectedTool.drawOverlay(ctx, x, y, hoveredCell.level);
-                        }
+                    }
+                    // Draw tile overlay for the hovered cell
+                    if (selectedTool.drawOverlay && x === hoveredCell.x && y === hoveredCell.y) {
+                        selectedTool.drawOverlay(ctx, x, y, hoveredCell.level);
                     }
                 }
             }

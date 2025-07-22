@@ -46,7 +46,7 @@
         int cellHeight = 64, cellWidth = 64;
         if (SelectedFilename != null && !HasJsonForImage(SelectedFilename))
         {
-
+            (cellWidth, cellHeight) = CalculateCellSizeFromImage(SelectedFilename);
         }
         else if (SelectedFilename != null)
         {
