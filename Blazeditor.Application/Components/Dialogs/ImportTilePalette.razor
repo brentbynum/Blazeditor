@@ -23,15 +23,16 @@
     [Parameter] public int CellSize { get; set; } = 64;
 
     private bool IsVisible { get; set; }
+    private string? PreviewImage { get; set; }
 
     protected override void OnInitialized()
     {
-        // List all image files in wwwroot/tilesets (png, jpg, jpeg)
+        // List all JSON files in wwwroot/tilesets
         var tilesetDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "tilesets");
         if (Directory.Exists(tilesetDir))
         {
             Filenames = Directory.GetFiles(tilesetDir)
-                .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase))
+                .Where(f => f.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                 .Select(f => Path.GetFileName(f)).ToList();
         }
     }
@@ -43,22 +44,14 @@
 
     private void Confirm()
     {
-        int cellHeight = 64, cellWidth = 64;
-        if (SelectedFilename != null && !HasJsonForImage(SelectedFilename))
+        int cellWidth = 64, cellHeight = 64;
+        if (SelectedFilename != null)
         {
-            (cellWidth, cellHeight) = CalculateCellSizeFromImage(SelectedFilename);
-        }
-        else if (SelectedFilename != null)
-        {
-            // Use JSON for slicing
             (cellWidth, cellHeight) = GetCellSizeFromJson(SelectedFilename);
-
         }
         OnConfirm.InvokeAsync((SelectedFilename ?? "", cellWidth, cellHeight));
         Close();
     }
-
-
 
     private void Close()
     {
@@ -68,48 +61,38 @@
     private void SelectFile(string filename)
     {
         SelectedFilename = filename;
+        PreviewImage = GetFirstSheetImage(filename);
     }
 
-    private string GetImageUrl(string filename)
+    private string? GetFirstSheetImage(string jsonFilename)
     {
-        return $"tilesets/{filename}";
-    }
-
-    private (int, int) CalculateCellSizeFromImage(string filename)
-    {
-        var imagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "tilesets", filename);
-        if (File.Exists(imagePath))
+        var jsonPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "tilesets", jsonFilename);
+        if (File.Exists(jsonPath))
         {
-            var image = Image.Load(imagePath);
-            if (image.Width % 64 != 0 || image.Height % 64 != 0)
+            var json = File.ReadAllText(jsonPath);
+            var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("sheets", out var sheets) && sheets.GetArrayLength() > 0)
             {
-                // If not divisible by 64, return the actual size
-                return (1, 1);
+                var firstSheet = sheets[0].GetString();
+                if (!string.IsNullOrEmpty(firstSheet))
+                {
+                    return $"tilesets/{firstSheet}";
+                }
             }
-            return (image.Width/CellSize, image.Height/CellSize);
         }
-        return (64, 64); // Default cell size if image not found
-    }
-
-    private bool HasJsonForImage(string filename)
-    {
-        var baseName = Path.GetFileNameWithoutExtension(filename);
-        var jsonPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "tilesets", baseName + ".json");
-        return File.Exists(jsonPath);
+        return null;
     }
 
     private (int, int) GetCellSizeFromJson(string filename)
     {
-        var baseName = Path.GetFileNameWithoutExtension(filename);
-        var jsonPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "tilesets", baseName + ".json");
+        var jsonPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "tilesets", filename);
         if (File.Exists(jsonPath))
         {
             var json = File.ReadAllText(jsonPath);
             var doc = System.Text.Json.JsonDocument.Parse(json);
             var root = doc.RootElement;
-            int cellWidth = root.TryGetProperty("cellWidth", out var w) ? w.GetInt32() : 64;
-            int cellHeight = root.TryGetProperty("cellHeight", out var h) ? h.GetInt32() : 64;
-            return (cellWidth, cellHeight);
+            int cellSize = root.TryGetProperty("cellSize", out var cs) ? cs.GetInt32() : 64;
+            return (cellSize, cellSize);
         }
         return (64, 64);
     }
@@ -118,7 +101,7 @@
 <div class="modal @ModalClass" tabindex="-1" style="z-index: 1050;">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
-            <h5 class="modal-header">Select an image file to extract into tiles.</h5>
+            <h5 class="modal-header">Select a tilesheet JSON file to import tiles from.</h5>
             <div class="modal-body">
                 <div class="row">
                     <div class="col-md-5 border-end">
@@ -128,7 +111,7 @@
                                 <button type="button"
                                         class="list-group-item list-group-item-action d-flex align-items-center tile-option @(SelectedFilename == filename ? "active" : null)"
                                         @onclick="() => { if (filename != null) SelectFile(filename); }">
-                                    <span class="file-icon me-2"><i class="bi bi-image"></i></span>
+                                    <span class="file-icon me-2"><i class="bi bi-file-earmark-text"></i></span>
                                     <span class="file-name flex-grow-1">@filename</span>
                                     @if (SelectedFilename == filename)
                                     {
@@ -139,9 +122,9 @@
                         </div>
                     </div>
                     <div class="col-md-7 d-flex flex-column align-items-center justify-content-center preview-pane">
-                        @if (!string.IsNullOrEmpty(SelectedFilename))
+                        @if (!string.IsNullOrEmpty(PreviewImage))
                         {
-                            <img src="@GetImageUrl(SelectedFilename)" alt="Preview" class="img-fluid rounded shadow-sm mb-3 preview-image" />
+                            <img src="@PreviewImage" alt="Preview" class="img-fluid rounded shadow-sm mb-3 preview-image" />
                             <div class="text-muted small">@SelectedFilename</div>
                         }
                         else

@@ -55,8 +55,9 @@ public partial class TileMapCanvas : IDisposable
     {
         if (Area?.TileMaps != null && Area.TileMaps.Count > 0)
         {
-            int width = Area.Size.Width;
-            int height = Area.Size.Height;
+            // Use 32x32 grid units for width/height
+            int width = Area.Size.Width / 32;
+            int height = Area.Size.Height / 32;
             if (SelectedCells != null && SelectedCells.Count > 0)
             {
                 foreach (var cell in SelectedCells)
@@ -90,7 +91,7 @@ public partial class TileMapCanvas : IDisposable
                 {
                     var tilePlacementsByLevel = Area.TileMaps.ToDictionary(
                         kvp => kvp.Key,
-                        kvp => kvp.Value.TilePlacements.Values.ToList()
+                        kvp => kvp.Value.TilePlacements.Where(p => p != null).ToList()
                     );
                     JS.InvokeVoidAsync("tileMapCanvas.updateTileMaps", tilePlacementsByLevel);
                 }
@@ -98,7 +99,13 @@ public partial class TileMapCanvas : IDisposable
             });
         }
     }
-
+    public async Task UpdateTilePalette()
+    {
+        if (Area != null)
+        {
+            await JS.InvokeVoidAsync("tileMapCanvas.updateTilePalette", Area.TilePalette);
+        }
+    }
     public async Task SetShowGrid(ChangeEventArgs e)
     {
         if (e.Value is bool showGrid && JS != null)
@@ -136,11 +143,13 @@ public partial class TileMapCanvas : IDisposable
         var updates = new List<object>();
         if (Area?.TilePalette == null || !Area.TilePalette.ContainsKey(tileId))
             return;
-        int mapWidth = Area.Size.Width;
-        int mapHeight = Area.Size.Height;
+        // Use 32x32 grid units for mapWidth/mapHeight
+        int mapWidth = Area.Size.Width / 32;
+        int mapHeight = Area.Size.Height / 32;
         var tile = Area.TilePalette[tileId];
-        int tileWidth = tile.Size.Width;
-        int tileHeight = tile.Size.Height;
+        // Tile size in 32x32 grid units
+        int tileWidth = tile.Size.Width / 32;
+        int tileHeight = tile.Size.Height / 32;
         if (Area.TileMaps != null && Area.TileMaps.TryGetValue(level, out var map))
         {
             int selMinX, selMaxX, selMinY, selMaxY;
@@ -189,26 +198,13 @@ public partial class TileMapCanvas : IDisposable
                         }
                     }
                     if (!fits) continue;
-                    // Only fill if empty if ctrlKey is pressed
-                    bool skip = false;
-                    for (int ty = 0; ty < tileHeight && !skip; ty++)
-                    {
-                        for (int tx = 0; tx < tileWidth && !skip; tx++)
-                        {
-                            var placement = map.GetPlacement(fx + tx, fy + ty);
-                            if (ctrlKey && placement != null && placement.TileId.HasValue)
-                                skip = true;
-                        }
-                    }
-                    if (skip) continue;
+                    var placement = map.GetPlacement(fx, fy);
+                    
+                    if (ctrlKey && placement != null && placement.TileId.HasValue)
+                        continue;
+
                     // Place the tile
-                    for (int ty = 0; ty < tileHeight; ty++)
-                    {
-                        for (int tx = 0; tx < tileWidth; tx++)
-                        {
-                            map.SetPlacement(fx + tx, fy + ty, tileId);
-                        }
-                    }
+                    map.SetPlacement(fx, fy, tileId);
                     updates.Add(new { x = fx, y = fy, level, tileId });
                 }
             }

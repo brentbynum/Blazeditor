@@ -231,30 +231,78 @@ public class DefinitionManager : IDisposable
         return result;
     }
 
-    public async Task<Dictionary<int, Tile>> AddTilePaletteToArea(Area area, string filename, int cellWidth = 64, int cellHeight = 64)
+    public Dictionary<int, Tile> ExtractTilesFromJsonTilesheet(string jsonFilename)
     {
-        var baseName = System.IO.Path.GetFileNameWithoutExtension(filename);
-        var jsonPath = System.IO.Path.Combine("wwwroot", "tilesets", baseName + ".json");
+        if (string.IsNullOrWhiteSpace(jsonFilename)) throw new ArgumentException("Filename cannot be null or empty.", nameof(jsonFilename));
+        var jsonPath = System.IO.Path.Combine("wwwroot", "tilesets", jsonFilename);
+        if (!System.IO.File.Exists(jsonPath)) throw new FileNotFoundException($"JSON file not found: {jsonPath}");
+        var json = System.IO.File.ReadAllText(jsonPath);
+        var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        var tiles = root.GetProperty("tiles");
+        var cellSizeVal = root.GetProperty("cellSize").GetInt32();
+        var cellSize = new Size { Width = cellSizeVal, Height = cellSizeVal };
+        var sheets = root.GetProperty("sheets").EnumerateArray().Select(s => s.GetString()).ToList();
+        var result = new Dictionary<int, Tile>();
+        // Load all sheet images
+        var sheetImages = new List<Image<Rgba32>>();
+        foreach (var sheet in sheets)
+        {
+            var imagePath = System.IO.Path.Combine("wwwroot", "tilesets", sheet);
+            if (!System.IO.File.Exists(imagePath)) throw new FileNotFoundException($"Image file not found: {imagePath}");
+            sheetImages.Add(Image.Load<Rgba32>(imagePath));
+        }
+        foreach (var tileElem in tiles.EnumerateArray())
+        {
+            string name = tileElem.GetProperty("name").GetString() ?? "tile";
+            string description = tileElem.GetProperty("description").GetString() ?? string.Empty;
+            int w = tileElem.GetProperty("w").GetInt32();
+            int h = tileElem.GetProperty("h").GetInt32();
+            int x = tileElem.GetProperty("x").GetInt32();
+            int y = tileElem.GetProperty("y").GetInt32();
+            int sheetIdx = tileElem.TryGetProperty("sheet", out var sheetProp) ? sheetProp.GetInt32() : 0;
+            if (sheetIdx < 0 || sheetIdx >= sheetImages.Count) continue;
+            var image = sheetImages[sheetIdx];
+            var rect = new SixLabors.ImageSharp.Rectangle(
+                x * cellSize.Width,
+                y * cellSize.Height,
+                w * cellSize.Width,
+                h * cellSize.Height
+            );
+            using (var tileImg = image.Clone(ctx => ctx.Crop(rect)))
+            using (var ms = new MemoryStream())
+            {
+                tileImg.Save(ms, new PngEncoder());
+                var base64 = Convert.ToBase64String(ms.ToArray());
+                var base64Url = $"data:image/png;base64,{base64}";
+                var tile = new Tile(name, description, sheets[sheetIdx] ?? "sheet", base64Url, new Size(w, h));
+                result.Add(tile.Id, tile);
+            }
+        }
+        foreach (var img in sheetImages) img.Dispose();
+        return result;
+    }
+
+    public async Task<Dictionary<int, Tile>> AddTilePaletteToArea(Area area, string jsonFilename, int cellWidth = 64, int cellHeight = 64)
+    {
         Dictionary<int, Tile> tiles = new Dictionary<int, Tile>();
+        var jsonPath = System.IO.Path.Combine("wwwroot", "tilesets", jsonFilename);
         if (System.IO.File.Exists(jsonPath))
         {
-            tiles = ExtractTilesFromImage(filename);
+            tiles = ExtractTilesFromJsonTilesheet(jsonFilename);
         }
         else
         {
-            // Fallback: treat as a single tile
-            var imagePath = System.IO.Path.Combine("wwwroot", "tilesets", filename);
+            // Fallback: treat as a single tile (should not happen for new workflow)
+            var imagePath = System.IO.Path.Combine("wwwroot", "tilesets", jsonFilename);
             if (!System.IO.File.Exists(imagePath))
                 throw new FileNotFoundException($"Image file not found: {imagePath}");
             using var image = Image.Load<Rgba32>(imagePath);
             using var ms = new MemoryStream();
             image.Save(ms, new PngEncoder());
             var base64 = $"data:image/png;base64,{Convert.ToBase64String(ms.ToArray())}";
-            var tile = new Tile(baseName, $"Imported from {filename}", "default", base64, new Size(cellWidth, cellHeight));
-            tiles = new Dictionary<int, Tile>
-            {
-                { tile.Id, tile }
-            };
+            var tile = new Tile(jsonFilename, $"Imported from {jsonFilename}", "default", base64, new Size(cellWidth, cellHeight));
+            tiles = new Dictionary<int, Tile> { { tile.Id, tile } };
         }
         foreach (var tile in tiles.Values)
         {

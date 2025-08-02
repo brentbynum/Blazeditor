@@ -1,6 +1,7 @@
 using Blazeditor.Application.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
+using System.Threading.Tasks;
 
 namespace Blazeditor.Application.Components.Dialogs;
 

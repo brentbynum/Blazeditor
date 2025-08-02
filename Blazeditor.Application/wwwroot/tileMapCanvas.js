@@ -2,7 +2,7 @@
     let mapCanvas;
     let ctx;
     let tileMaps = {};
-    let cellSize = 64;
+    let cellSize = 32; // 32x32 grid
     let mapSize = { width: 1, height: 1 }; // Store area size (in cells)
     let running = false;
     let hoveredCell = { x: -1, y: -1, level: 0 };
@@ -60,7 +60,8 @@
                             if (tile._overlayImage && tile._overlayImageLoaded) {
                                 ctx.save();
                                 ctx.globalAlpha = 0.5;
-                                ctx.drawImage(tile._overlayImage, x * cellSize, y * cellSize, tile.size.width * cellSize, tile.size.height * cellSize);
+                                // Draw overlay at 32x32 grid
+                                ctx.drawImage(tile._overlayImage, x * cellSize, y * cellSize, tile.size.width, tile.size.height);
                                 ctx.restore();
                             }
                         }
@@ -103,6 +104,15 @@
                 }
                 if (dotNetRef) {
                     dotNetRef.invokeMethodAsync('OnJsSelectionChanged', selectedCells);
+                }
+            },
+            keydown: (e) => {
+                if (e.key === 'Escape') {
+                    // Clear selection on Escape key
+                    selectedCells = [];
+                    if (dotNetRef) {
+                        dotNetRef.invokeMethodAsync('OnJsSelectionChanged', selectedCells);
+                    }
                 }
             }
         },
@@ -197,6 +207,7 @@
             mapCanvas.addEventListener('mousedown', this.mousedown);
             mapCanvas.addEventListener('mouseup', this.mouseup);
             mapCanvas.addEventListener('mouseleave', this.mouseleave);
+            mapCanvas.addEventListener('keydown', this.keydown);
             // Set the default cursor for the canvas
             if (mapCanvas) {
                 mapCanvas.style.cursor = selectedTool.cursor;
@@ -205,7 +216,7 @@
                 tileMaps = tileMapsArg;
             }
             if (cellSizeArg) {
-                cellSize = cellSizeArg;
+                cellSize = 32; // Always use 32 for placement
             }
             if (mapSizeArg) {
                 mapSize = mapSizeArg;
@@ -230,13 +241,17 @@
             if (!positions) return;
             if (positions.length) {
                 positions.forEach(pos => {
-                    let map = tileMaps[pos.level]
-                    map[pos.x + (pos.y * mapSize.width)] = pos;
+                    let map = tileMaps[pos.level];
+                    if (Array.isArray(map.tilePlacements)) {
+                        map.tilePlacements[pos.y * (mapSize.width / 32) + pos.x] = pos;
+                    }
                 });
             } else {
                 let pos = positions;
-                let map = tileMaps[pos.level]
-                map.tilePlacements[pos.x + (pos.y * mapSize.width)] = pos;
+                let map = tileMaps[pos.level];
+                if (Array.isArray(map.tilePlacements)) {
+                    map.tilePlacements[pos.y * (mapSize.width / 32) + pos.x] = pos;
+                }
             }
         },
         setShowGrid: function (val) {
@@ -258,6 +273,11 @@
         },
         setDotNetRef: function (ref) {
             dotNetRef = ref;
+        },
+        keydown: function (e) {
+            if (selectedTool.keydown) {
+                selectedTool.keydown(e);
+            }
         },
         mouseup: function (e) {
             if (selectedTool.mouseup) {
@@ -320,7 +340,7 @@
             }
             // Draw tiles (from TilePlacements)
             for (let map of Object.values(tileMaps)) {
-                const tilePlacements = Object.values(map.tilePlacements);
+                const tilePlacements = map.tilePlacements;
                 if (!tilePlacements || !tilePlacements.length) continue;
                 for (let i = 0; i < tilePlacements.length; i++) {
                     const placement = tilePlacements[i];
@@ -337,19 +357,22 @@
                         img.onload = () => { tile.layout.isLoaded = true; }
                     }
                     if (tile && tile.image && tile.image.startsWith('data:image') && tile.layout.isLoaded) {
-                        ctx.drawImage(tile.layout.image, x * cellSize, y * cellSize, tile.size.width * cellSize, tile.size.height * cellSize);
+                        // Draw at 32x32 grid
+                        ctx.drawImage(tile.layout.image, x * cellSize, y * cellSize, tile.size.width * 64, tile.size.height *64);
                     }
                 }
             }
             // Draw grid and hovered cell
             for (let y = 0; y < mapSize.height; y++) {
                 for (let x = 0; x < mapSize.width; x++) {
-                    // Draw a border around the whole grid
-                    ctx.save();
-                    ctx.strokeStyle = '#000';
-                    ctx.lineWidth = 3;
-                    ctx.strokeRect(0, 0, mapSize.width * cellSize, mapSize.height * cellSize);
-                    ctx.restore();
+                    // Draw a border around the whole grid (once, not per cell)
+                    if (x === 0 && y === 0) {
+                        ctx.save();
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 3;
+                        ctx.strokeRect(0, 0, mapSize.width * cellSize, mapSize.height * cellSize);
+                        ctx.restore();
+                    }
                     if (showGrid) {
                         // Draw grid
                         ctx.strokeStyle = '#ccc';
