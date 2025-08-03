@@ -3,7 +3,7 @@
 <div id="paletteHeader">
     <div><h3>Tile Palette</h3></div>
 </div>
-@if (Area.TilePaletteId.HasValue)
+@if (SelectedPaletteId.HasValue)
 {
     <div style="height: 400px; overflow-y: auto; border:1px solid #ccc; background:#f8f9fa;">
         <canvas @ref="canvasRef" width="512" style="width:100%; display:block; cursor: pointer;"></canvas>

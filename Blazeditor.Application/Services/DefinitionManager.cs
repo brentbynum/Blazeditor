@@ -5,7 +5,6 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Formats.Png;
 using Size = Blazeditor.Application.Models.Size;
-using System.Text.Json.Serialization;
 
 namespace Blazeditor.Application.Services;
 
@@ -41,8 +40,8 @@ public class DefinitionManager : IDisposable
     {
         if (!_definition.Areas.TryGetValue(areaId, out var area)) return;
         if (!area.TileMaps.TryGetValue(level, out var map)) return;
-        var oldPlacement = map[x, y];
-        var oldTile = oldPlacement != null && oldPlacement.HasValue && area.TilePaletteId.HasValue && GetPalette(area.TilePaletteId.Value).Tiles.TryGetValue(oldPlacement.Value, out var t) ? t : null;
+        var oldPlacement = map.GetPlacement(x, y);
+        var oldTile = oldPlacement != null && oldPlacement.TileId.HasValue && oldPlacement.PaletteId.HasValue &&  GetPalette(oldPlacement.PaletteId.Value).Tiles.TryGetValue(oldPlacement.TileId.Value, out var t) ? t : null;
         var undo = new TileEditUndo
         {
             AreaId = areaId,
@@ -54,7 +53,7 @@ public class DefinitionManager : IDisposable
         };
         _tileUndoStack.Push(undo);
         _tileRedoStack.Clear();
-        map.SetPlacement(x, y, newTile?.Id);
+        map.SetPlacement(x, y, newTile?.Id, newTile?.SourcePaletteId);
         MarkDirty();
         OnChanged?.Invoke(_definition);
     }
@@ -65,7 +64,7 @@ public class DefinitionManager : IDisposable
         var edit = _tileUndoStack.Pop();
         if (!_definition.Areas.TryGetValue(edit.AreaId, out var area)) return;
         if (!area.TileMaps.TryGetValue(edit.TileMapLevel, out var map)) return;
-        map.SetPlacement(edit.X, edit.Y, edit.OldTile?.Id);
+        map.SetPlacement(edit.X, edit.Y, edit.OldTile?.Id, edit.OldTile?.SourcePaletteId);
         _tileRedoStack.Push(edit);
         MarkDirty();
         OnChanged?.Invoke(_definition);
@@ -77,7 +76,7 @@ public class DefinitionManager : IDisposable
         var edit = _tileRedoStack.Pop();
         if (!_definition.Areas.TryGetValue(edit.AreaId, out var area)) return;
         if (!area.TileMaps.TryGetValue(edit.TileMapLevel, out var map)) return;
-        map.SetPlacement(edit.X, edit.Y, edit.NewTile?.Id);
+        map.SetPlacement(edit.X, edit.Y, edit.NewTile?.Id, edit.NewTile?.SourcePaletteId);
         _tileUndoStack.Push(edit);
         MarkDirty();
         OnChanged?.Invoke(_definition);
@@ -154,14 +153,14 @@ public class DefinitionManager : IDisposable
 
     public bool IsPaletteUsed(int paletteId)
     {
-        return _definition.Areas.Values.Any(a => a.TilePaletteId == paletteId);
+        return _definition.Areas.Values.Any(a => a.TilePaletteIds.Any(p=> p == paletteId));
     }
 
     public void RemoveTilePalette(int paletteId)
     {
         if (!_definition.TilePalettes.ContainsKey(paletteId))
             throw new KeyNotFoundException($"Tile palette with ID {paletteId} not found.");
-        if (_definition.Areas.Values.Any(a => a.TilePaletteId == paletteId))
+        if (IsPaletteUsed(paletteId)) 
             throw new InvalidOperationException($"Cannot remove tile palette {paletteId} because it is still in use by one or more areas.");
         if (_definition.TilePalettes.Remove(paletteId))
         {
@@ -182,77 +181,7 @@ public class DefinitionManager : IDisposable
         return _definition.TilePalettes.Values;
     }
 
-    public List<string?> GetTileImageFilenames()
-    {
-        // Return all unique image filenames from all tile palettes
-        var filenames = new HashSet<string?>();
-        foreach (var area in _definition.Areas.Values)
-        {
-            if (area.TilePaletteId == null || !_definition.TilePalettes.TryGetValue(area.TilePaletteId.Value, out var palette))
-                continue;
-            foreach (var tile in palette.Tiles.Values)
-            {
-                if (!string.IsNullOrEmpty(tile.Image))
-                    filenames.Add(tile.Image);
-            }
-        }
-        return filenames.ToList();
-    }
-
-    public Dictionary<int, Tile> ExtractTilesFromImage(string filename)
-    {
-        if (string.IsNullOrWhiteSpace(filename)) throw new ArgumentException("Filename cannot be null or empty.", nameof(filename));
-        var baseName = Path.GetFileNameWithoutExtension(filename);
-        var imagePath = Path.Combine("wwwroot", "tilesets", baseName + ".png");
-        var jsonPath = Path.Combine("wwwroot", "tilesets", baseName + ".json");
-
-        if (!File.Exists(imagePath)) throw new FileNotFoundException($"Image file not found: {imagePath}");
-        if (!File.Exists(jsonPath)) throw new FileNotFoundException($"JSON file not found: {jsonPath}");
-
-        var json = File.ReadAllText(jsonPath);
-        var doc = JsonDocument.Parse(json);
-        var tiles = doc.RootElement.GetProperty("tiles");
-        var cellSizeVal = doc.RootElement.GetProperty("cellSize").GetInt32();
-        var cellSize = new Size
-        {
-            Width = cellSizeVal,
-            Height = cellSizeVal
-        };
-
-        var result = new Dictionary<int, Tile>();
-        using (var image = Image.Load<Rgba32>(imagePath))
-        {
-            foreach (var tileElem in tiles.EnumerateArray())
-            {
-                string name = tileElem.GetProperty("name").GetString() ?? "tile";
-                string description = tileElem.GetProperty("description").GetString() ?? string.Empty;
-                int w = tileElem.GetProperty("w").GetInt32();
-                int h = tileElem.GetProperty("h").GetInt32();
-                int x = tileElem.GetProperty("x").GetInt32();
-                int y = tileElem.GetProperty("y").GetInt32();
-
-                var rect = new SixLabors.ImageSharp.Rectangle(
-                    x * cellSize.Width,
-                    y * cellSize.Height,
-                    w * cellSize.Width,
-                    h * cellSize.Height
-                );
-
-                using (var tileImg = image.Clone(ctx => ctx.Crop(rect)))
-                using (var ms = new MemoryStream())
-                {
-                    tileImg.Save(ms, new PngEncoder());
-                    var base64 = Convert.ToBase64String(ms.ToArray());
-                    var base64Url = $"data:image/png;base64,{base64}";
-                    var tile = new Tile(name, description, "default", base64Url, new Size(w, h));
-                    result.Add(tile.Id, tile);
-                }
-            }
-        }
-        return result;
-    }
-
-    public Dictionary<int, Tile> ExtractTilesFromJsonTilesheet(string jsonFilename)
+    public Dictionary<int, Tile> ExtractTilesFromJsonTilesheet(string jsonFilename, int paletteId)
     {
         if (string.IsNullOrWhiteSpace(jsonFilename)) throw new ArgumentException("Filename cannot be null or empty.", nameof(jsonFilename));
         var jsonPath = Path.Combine("wwwroot", "tilesets", jsonFilename);
@@ -284,7 +213,7 @@ public class DefinitionManager : IDisposable
             int sheetIdx = tileElem.TryGetProperty("sheet", out var sheetProp) ? sheetProp.GetInt32() : 0;
             if (sheetIdx < 0 || sheetIdx >= sheetImages.Count) continue;
             var image = sheetImages[sheetIdx];
-            var rect = new SixLabors.ImageSharp.Rectangle(
+            var rect = new Rectangle(
                 x * cellSize.Width,
                 y * cellSize.Height,
                 w * cellSize.Width,
@@ -296,7 +225,7 @@ public class DefinitionManager : IDisposable
                 tileImg.Save(ms, new PngEncoder());
                 var base64 = Convert.ToBase64String(ms.ToArray());
                 var base64Url = $"data:image/png;base64,{base64}";
-                var tile = new Tile(name, description, sheets[sheetIdx] ?? "sheet", base64Url, new Size(w, h));
+                var tile = new Tile(name, description, sheets[sheetIdx] ?? "sheet", base64Url, new Size(w, h), paletteId);
                 result.Add(tile.Id, tile);
             }
         }
@@ -306,12 +235,7 @@ public class DefinitionManager : IDisposable
 
     public TilePalette ImportTileset(string jsonFilename, int? paletteId)
     {
-        Dictionary<int, Tile> tiles = new Dictionary<int, Tile>();
-        var jsonPath = Path.Combine("wwwroot", "tilesets", jsonFilename);
-        if (File.Exists(jsonPath))
-        {
-            tiles = ExtractTilesFromJsonTilesheet(jsonFilename);
-        }
+        
 
         TilePalette palette;
         if (paletteId.HasValue && _definition.TilePalettes.TryGetValue(paletteId.Value, out var existingPalette))
@@ -327,6 +251,13 @@ public class DefinitionManager : IDisposable
             palette = new TilePalette(name, description);
             _definition.TilePalettes[palette.Id] = palette;
         }
+        Dictionary<int, Tile> tiles = new Dictionary<int, Tile>();
+        var jsonPath = Path.Combine("wwwroot", "tilesets", jsonFilename);
+        if (File.Exists(jsonPath))
+        {
+            tiles = ExtractTilesFromJsonTilesheet(jsonFilename, palette.Id);
+        }
+
         foreach (var tile in tiles.Values)
         {
             if (palette.Tiles.ContainsKey(tile.Id))

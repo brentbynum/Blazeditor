@@ -8,7 +8,7 @@ public class Area : BaseEntity
         Size = size ?? new Size(1, 1);
         CellSize = cellSize ?? 64;
     }
-    public int? TilePaletteId { get; set; }
+    public List<int> TilePaletteIds { get; set; } = [];
     public Dictionary<int, TileMap> TileMaps { get; set; } = new();
     private Size _size = new(1, 1); // Default size
     public Size Size
@@ -26,7 +26,6 @@ public class Area : BaseEntity
         }
 
     }
-
 
     public int CellSize { get; set; } = 64; // Cell size in pixels
 }

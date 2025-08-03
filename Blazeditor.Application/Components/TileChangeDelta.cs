@@ -14,7 +14,7 @@ public class TileChangeDelta : IDefinitionDelta
         for (int i = 0; i < Changes.Count; i++)
         {
             var change = Changes[i];
-            tileMap.SetPlacement(change.X, change.Y, change.NewTileId);
+            tileMap.SetPlacement(change.X, change.Y, change.NewTileId, change.NewPaletteId);
         }
     }
     public void Revert(Definition definition)
@@ -24,7 +24,7 @@ public class TileChangeDelta : IDefinitionDelta
         for (int i = 0; i < Changes.Count; i++)
         {
             var change = Changes[i];
-            tileMap.SetPlacement(change.X, change.Y, change.OldTileId);
+            tileMap.SetPlacement(change.X, change.Y, change.OldTileId, change.OldPaletteId);
         }
     }
 }
@@ -35,4 +35,7 @@ public class TileCellChange
     public int Y { get; set; }
     public int? OldTileId { get; set; }
     public int? NewTileId { get; set; }
+
+    public int? OldPaletteId { get; set; }
+    public int? NewPaletteId { get; set; }
 }

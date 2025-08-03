@@ -15,6 +15,8 @@ public partial class AreaEditor : IDisposable
     public required Area Area { get; set; }
     private DotNetObjectReference<AreaEditor>? dotNetRef;
     private int? previousAreaId = null;
+    private int? selectedPaletteId;
+
 
     public required TileMapCanvas TileMapCanvas { get; set; }
     public required TilePaletteCanvas TilePaletteCanvas { get; set; }
@@ -33,6 +35,8 @@ public partial class AreaEditor : IDisposable
 
     protected override void OnInitialized()
     {
+        // Default to first palette in area or null
+        selectedPaletteId = Area?.TilePaletteIds.FirstOrDefault();
         Definition.OnChanged += HandleDefinitionChanged;
     }
 
@@ -43,18 +47,27 @@ public partial class AreaEditor : IDisposable
 
     public void OnTileSelected(int tileId)
     {
-        if (Area == null || Area.TilePaletteId == null)
+        if (Area == null || !selectedPaletteId.HasValue)
         {
             SelectedTile = null;
             return;
         }
-        SelectedTile = Definition.GetPalette(Area.TilePaletteId.Value).Tiles[tileId];
+        SelectedTile = Definition.GetPalette(selectedPaletteId.Value).Tiles[tileId];
         StateHasChanged();
     }
     public void OnLayerSelected(int layer)
     {
         ActiveLayer = layer;
         StateHasChanged();
+    }
+
+    private void OnPaletteChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newPaletteId))
+        {
+            selectedPaletteId = newPaletteId;
+            StateHasChanged();
+        }
     }
     public async Task OnAddLayer()
     {
@@ -78,7 +91,6 @@ public partial class AreaEditor : IDisposable
     private async Task OnPaletteImport(PaletteImportEventArgs paletteImportEventArgs)
     {
         var palette = Definition.ImportTileset(paletteImportEventArgs.FileName, null);
-        Area.TilePaletteId = palette.Id;
         await TileMapCanvas.UpdateTilePalette();
         await Definition.SaveAsync();
         StateHasChanged();
@@ -86,7 +98,7 @@ public partial class AreaEditor : IDisposable
 
     public async Task DeleteSelectedTile()
     {
-        if (Area != null && SelectedTile != null && Area.TilePaletteId.HasValue)
+        if (Area != null && SelectedTile != null && selectedPaletteId.HasValue)
         {
             // Check if the tile is referenced in any TileMap
             bool isReferenced = Area.TileMaps.Values.Any(map =>
@@ -98,7 +110,7 @@ public partial class AreaEditor : IDisposable
                 // TODO: Add user feedback for failed delete
                 return;
             }
-            Definition.GetPalette(Area.TilePaletteId.Value).Tiles.Remove(SelectedTile.Id);
+            Definition.GetPalette(selectedPaletteId.Value).Tiles.Remove(SelectedTile.Id);
             SelectedTile = null;
             await Definition.SaveAsync();
             StateHasChanged();

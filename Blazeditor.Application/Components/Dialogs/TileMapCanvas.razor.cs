@@ -9,7 +9,8 @@ namespace Blazeditor.Application.Components.Dialogs;
 public partial class TileMapCanvas : IDisposable
 {
     [Parameter] public required Area Area { get; set; } = new();
-    [Parameter] public int SelectedTileId { get; set; }
+    [Parameter] public Tile? SelectedTile { get; set; }
+
     [Parameter] public int ActiveLayer { get; set; }
     private ElementReference canvasRef;
     private DotNetObjectReference<TileMapCanvas>? dotNetRef;
@@ -35,17 +36,18 @@ public partial class TileMapCanvas : IDisposable
                 dotNetRef = DotNetObjectReference.Create(this);
                 await JS.InvokeVoidAsync("tileMapCanvas.setDotNetRef", dotNetRef);
             }
-            if (_shouldInitMap && Area.TilePaletteId.HasValue)
+            if (_shouldInitMap)
+
             {
-                var palette = Definition.GetPalette(Area.TilePaletteId.Value);
+                var paletteTiles = Area.TilePaletteIds.SelectMany(id => Definition.GetPalette(id).Tiles).ToDictionary();
                 // The map only ever gets init-ed once, and the tilemaps get synched manually on add/remove
-                await JS.InvokeVoidAsync("tileMapCanvas.init", canvasRef, Area.TileMaps, Area.CellSize, Area.Size, palette.Tiles);
+                await JS.InvokeVoidAsync("tileMapCanvas.init", canvasRef, Area.TileMaps, Area.CellSize, Area.Size, paletteTiles);
                 _shouldInitMap = false; // Reset flag after initialization
 
             }
             if (_shouldInitJs)
             {
-                await JS.InvokeVoidAsync("tileMapCanvas.setSelectedTileId", SelectedTileId);
+                await JS.InvokeVoidAsync("tileMapCanvas.setSelectedTileId", SelectedTile?.Id);                
                 await JS.InvokeVoidAsync("tileMapCanvas.setActiveLayer", ActiveLayer);
                 _shouldInitJs = false;
             }
@@ -67,7 +69,7 @@ public partial class TileMapCanvas : IDisposable
                     {
                         if (cell.X >= 0 && cell.X < width && cell.Y >= 0 && cell.Y < height)
                         {
-                            map.SetPlacement(cell.X, cell.Y, null);
+                            map.SetPlacement(cell.X, cell.Y, null, null);
                         }
                     }
                 }
@@ -80,7 +82,7 @@ public partial class TileMapCanvas : IDisposable
                     {
                         for (int x = 0; x < width; x++)
                         {
-                            tileMap.SetPlacement(x, y, null);
+                            tileMap.SetPlacement(x, y, null, null);
                         }
                     }
                 }
@@ -102,9 +104,10 @@ public partial class TileMapCanvas : IDisposable
     }
     public async Task UpdateTilePalette()
     {
-        if (Area.TilePaletteId != null)
+        if (Area.TilePaletteIds.Count() > 0)
         {
-            await JS.InvokeVoidAsync("tileMapCanvas.updateTilePalette", Definition.GetPalette(Area.TilePaletteId.Value).Tiles);
+            var paletteTiles = Area.TilePaletteIds.Select(id => Definition.GetPalette(id)).SelectMany(p => p.Tiles);
+            await JS.InvokeVoidAsync("tileMapCanvas.updateTilePalette", paletteTiles);
             StateHasChanged();
         }
     }
@@ -120,10 +123,14 @@ public partial class TileMapCanvas : IDisposable
     public void OnJsPlaceTile(int tileId, int x, int y, int layer)
     {
         var areaId = Area.Id;
-        if (Area.TilePaletteId.HasValue)
+        if (SelectedTile != null)
         {
-            var palette = Definition.GetPalette(Area.TilePaletteId.Value);
-            if (palette != null && palette.Tiles.TryGetValue(tileId, out Tile? tile))
+            if (Area.TilePaletteIds.Contains(SelectedTile.SourcePaletteId) == false)
+            {
+                Area.TilePaletteIds.Add(SelectedTile.SourcePaletteId);
+            }
+            var palette = Definition.GetPalette(SelectedTile.SourcePaletteId);
+            if (palette != null && SelectedTile != null && palette.Tiles.TryGetValue(SelectedTile.Id, out Tile? tile))
             {
                 if (tile == null)
                     return;
@@ -132,7 +139,7 @@ public partial class TileMapCanvas : IDisposable
                 {
                     if (JS != null)
                     {
-                        var updates = new[] { new { x, y, layer, tileId } };
+                        var updates = new[] { new { x, y, layer, tileId, paletteId = palette.Id } };
                         JS.InvokeVoidAsync("tileMapCanvas.updateTilePositions", updates);
                     }
                     StateHasChanged();
@@ -145,18 +152,22 @@ public partial class TileMapCanvas : IDisposable
 
 
     [JSInvokable]
-    public void OnJsFill(int tileId, int x, int y, int layer, bool ctrlKey)
+    public void OnJsFill(int x, int y, int layer, bool ctrlKey)
     {
-        if (Area == null || Area.TilePaletteId == null || Area.TileMaps == null)
+        if (Area == null || Area.TilePaletteIds.Count() > 0 || Area.TileMaps == null || SelectedTile == null)
             return;
+        if (Area.TilePaletteIds.Contains(SelectedTile.SourcePaletteId) == false)
+        {
+            Area.TilePaletteIds.Add(SelectedTile.SourcePaletteId);
+        }
         var updates = new List<object>();
-        var palette = Definition.GetPalette(Area.TilePaletteId.Value);
-        if (palette == null || !palette.Tiles.ContainsKey(tileId))
+        var palette = Definition.GetPalette(SelectedTile.SourcePaletteId);
+        if (palette == null || !palette.Tiles.ContainsKey(SelectedTile.Id))
             return;
         // Use 32x32 grid units for mapWidth/mapHeight
         int mapWidth = Area.Size.Width / 32;
         int mapHeight = Area.Size.Height / 32;
-        var tile = palette.Tiles[tileId];
+        var tile = palette.Tiles[SelectedTile.Id];
         // Tile size in 32x32 grid units
         int tileWidth = tile.Size.Width / 32;
         int tileHeight = tile.Size.Height / 32;
@@ -208,14 +219,14 @@ public partial class TileMapCanvas : IDisposable
                         }
                     }
                     if (!fits) continue;
-                    var placement = map[fx, fy];
+                    var placement = map.GetPlacement(fx, fy);
 
-                    if (ctrlKey && placement.HasValue)
+                    if (ctrlKey && placement == null)
                         continue;
 
                     // Place the tile
-                    map.SetPlacement(fx, fy, tileId);
-                    updates.Add(new { x = fx, y = fy, layer, tileId });
+                    map.SetPlacement(fx, fy, SelectedTile.Id, SelectedTile.SourcePaletteId);
+                    updates.Add(new { x = fx, y = fy, layer, tileId=SelectedTile.Id, paletteId = palette.Id });
                 }
             }
         }
@@ -234,7 +245,7 @@ public partial class TileMapCanvas : IDisposable
     {
         if (Area != null && Area.TileMaps != null && Area.TileMaps.TryGetValue(layer, out var map))
         {
-            map.SetPlacement(x, y, null);
+            map.SetPlacement(x, y, null, null);
             InvokeAsync(() =>
             {
                 if (JS != null)

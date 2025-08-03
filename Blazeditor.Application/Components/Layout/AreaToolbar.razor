@@ -20,17 +20,4 @@
         await Definition.SaveAsync();
         StateHasChanged();
     }
-
-    private bool showImportPaletteDialog = false;
-    private void ShowImportPaletteDialog() => showImportPaletteDialog = true;
-    private void HideImportPaletteDialog() => showImportPaletteDialog = false;
-
-    private async Task HandleImportPalette((string filename, int cellWidth, int cellHeight) importInfo)
-    {
-        // Call your DefinitionManager/Service to import the palette
-        // Example: Definition.ImportTileset(importInfo.filename, null);
-        showImportPaletteDialog = false;
-        await Definition.SaveAsync();
-        StateHasChanged();
-    }
 }

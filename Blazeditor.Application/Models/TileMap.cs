@@ -6,7 +6,10 @@ public class TilePlacement
 {
     public int X { get; set; }
     public int Y { get; set; }
+
+    public int Elevation { get; set; } = 0; // Elevation property for vertical offset
     public int? TileId { get; set; } // null means empty cell
+    public int? PaletteId { get; set; } // null means no specific palette, shouldn't happen in a tile map placement because you need a palette to make a plcament
 }
 
 public class TileMap : BaseEntity
@@ -24,11 +27,6 @@ public class TileMap : BaseEntity
     // Store tile placements for persistence (32x32 grid)
     public TilePlacement?[] TilePlacements { get; set; } = [];
 
-    public int? this[int x, int y]
-    {
-        get => GetPlacement(x, y)?.TileId;
-        set => SetPlacement(x, y, value);
-    }
 
     // Size in 32x32 grid units
     public Size Size => _size32;
@@ -53,7 +51,7 @@ public class TileMap : BaseEntity
     }
 
     // Get tile placement at (x, y) in 32x32 grid units
-    private TilePlacement? GetPlacement(int x, int y)
+    public TilePlacement? GetPlacement(int x, int y)
     {
         int idx = GetKey(x, y);
         if (idx < 0 || idx >= TilePlacements.Length) return null;
@@ -61,13 +59,13 @@ public class TileMap : BaseEntity
     }
 
     // Set or update tile placement at (x, y) in 32x32 grid units
-    public void SetPlacement(int x, int y, int? tileId)
+    public void SetPlacement(int x, int y, int? tileId, int? paletteId)
     {
         int idx = GetKey(x, y);
         if (idx < 0 || idx >= TilePlacements.Length) return;
         if (tileId.HasValue)
         {
-            TilePlacements[idx] = new TilePlacement { X = x, Y = y, TileId = tileId };
+            TilePlacements[idx] = new TilePlacement { X = x, Y = y, TileId = tileId, PaletteId = paletteId };
         }
         else
         {

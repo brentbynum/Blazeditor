@@ -12,7 +12,7 @@
     <div class="area-editor-canvas">
         @if (Area != null)
         {
-            <TileMapCanvas @ref="TileMapCanvas" Area="@Area" SelectedTileId="@(SelectedTile != null ? SelectedTile.Id : -1)" ActiveLayer="@ActiveLayer" />
+            <TileMapCanvas @ref="TileMapCanvas" Area="@Area" SelectedTile="SelectedTile" ActiveLayer="@ActiveLayer" />
         }
     </div>
     <div class="area-editor-sidebar">
@@ -31,15 +31,15 @@
         {
             <div class="mb-3">
                 <label for="paletteSelect" class="form-label">Tile Palette</label>
-                <select id="paletteSelect" class="form-select" @onchange="OnPaletteChanged" value="@Area.TilePaletteId">
+                <select id="paletteSelect" class="form-select" @onchange="OnPaletteChanged" value="@selectedPaletteId">
                     <option value="">-- Select Palette --</option>
                     @foreach (var palette in Definition.GetTilePalettes())
                     {
-                        <option value="@palette.Id" selected="@(Area.TilePaletteId == palette.Id)">@palette.Name</option>
+                        <option value="@palette.Id" selected="@(selectedPaletteId == palette.Id)">@palette.Name</option>
                     }
                 </select>
             </div>
-            <TilePaletteCanvas @ref=TilePaletteCanvas Area="@Area" OnTileSelected="OnTileSelected" OnPaletteImport="OnPaletteImport" />
+            <TilePaletteCanvas @ref=TilePaletteCanvas Area="@Area" SelectedPaletteId="@selectedPaletteId" OnTileSelected="OnTileSelected" />
             <MapLayerSelector Layers="Area.TileMaps" ActiveLayer="@ActiveLayer" OnLayerSelected="OnLayerSelected" OnRemoveLayer="OnRemoveLayer" OnAddLayer="OnAddLayer" />
             @if (SelectedTile != null)
             {
@@ -56,15 +56,7 @@
 </div>
 
 @code {
-    private async Task OnPaletteChanged(ChangeEventArgs e)
-    {
-        if (Area == null) return;
-        if (int.TryParse(e.Value?.ToString(), out int newPaletteId))
-        {
-            Area.TilePaletteId = newPaletteId;
-            await Definition.SaveAsync();
-            StateHasChanged();
-        }
-    }
+
+
 }
 

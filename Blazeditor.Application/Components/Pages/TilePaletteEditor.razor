@@ -9,6 +9,8 @@
     private TilePalette? Palette;
     private bool notFound = false;
     private int cellSize = 64; // Default fallback
+    private int? selectedTileId = null;
+    private Tile? SelectedTile => Palette?.Tiles.TryGetValue(selectedTileId ?? -1, out var t) == true ? t : null;
 
     protected override void OnInitialized()
     {
@@ -18,12 +20,20 @@
             if (Palette != null)
             {
                 cellSize = Palette.CellSize;
+                // Select the first tile by default
+                if (Palette.Tiles.Count > 0)
+                    selectedTileId = Palette.Tiles.Keys.First();
             }
         }
         catch
         {
             notFound = true;
         }
+    }
+
+    private void SelectTile(int tileId)
+    {
+        selectedTileId = tileId;
     }
 }
 
@@ -40,21 +50,37 @@ else
     <div class="container mt-3">
         <h2>Edit Tile Palette: @Palette.Name</h2>
         <p>@Palette.Description</p>
-        <h4>Tiles</h4>
         <div class="row">
-            @foreach (var tile in Palette.Tiles.Values)
-            {
-                var pixelWidth = tile.Size.Width * cellSize;
-                var pixelHeight = tile.Size.Height * cellSize;
-                <div class="col-auto mb-3">
+            <div class="col-4 border-end" style="min-width:180px;">
+                <div class="list-group" style="max-height: calc(100vh - 200px); overflow-y: auto;">
+                    @foreach (var tile in Palette.Tiles.Values)
+                    {
+                        <button class="list-group-item list-group-item-action d-flex align-items-center @(selectedTileId == tile.Id ? "active" : null)" @onclick="() => SelectTile(tile.Id)">
+                            <img src="@tile.Image" style="width:64px; height:64px; object-fit:contain; margin-right:10px;" />
+                            <span>@tile.Name</span>
+                        </button>
+                    }
+                </div>
+            </div>
+            <div class="col-8">
+                @if (SelectedTile != null)
+                {
                     <div class="card">
-                        <img src="@tile.Image" class="card-img-top" style="display:block; margin:auto; width:@(pixelWidth)px; height:@(pixelHeight)px;" />
-                        <div class="card-body p-2">
-                            <div class="card-title small">@($"{tile.Name} [{tile.Size.Width}x{tile.Size.Height}]")</div>
+                        <div class="card-body">
+                            <h5 class="card-title">@SelectedTile.Name</h5>
+                            <img src="@SelectedTile.Image" style="display:block; margin:auto; width:@(SelectedTile.Size.Width * cellSize)px; height:@(SelectedTile.Size.Height * cellSize)px;" />
+                            <div class="mt-2">
+                                <strong>Size:</strong> @SelectedTile.Size.Width x @SelectedTile.Size.Height<br />
+                                <strong>Description:</strong> @SelectedTile.Description
+                            </div>
                         </div>
                     </div>
-                </div>
-            }
+                }
+                else
+                {
+                    <div class="text-muted">Select a tile to view details.</div>
+                }
+            </div>
         </div>
     </div>
 }
