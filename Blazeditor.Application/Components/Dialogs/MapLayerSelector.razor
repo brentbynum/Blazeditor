@@ -1,0 +1,91 @@
+@using Blazeditor.Application.Models
+
+<div class="map-layer-selector mb-3">
+    <label class="form-label">Map Layers</label>
+    <div class="btn-group-vertical w-100" role="group" aria-label="Map Layers">
+        @foreach (var layer in Layers)
+        {
+            <div class="d-flex align-items-center mb-1 w-100 justify-content-between">
+                
+                @if (editingLayer == layer.Key)
+                {
+                    <input type="radio" class="form-check-input me-2" name="layerRadio" value="@layer" checked="@(layer.Key == ActiveLayer)" @onchange="() => OnLayerSelected.InvokeAsync(layer.Key)" />
+                    <input class="form-control form-control-sm me-2" style="width: 120px;" @bind="editName" @onkeydown="(e) => OnEditKeyDown(e, layer.Key)" />
+                    <input class="form-control form-control-sm me-2" style="width: 180px;" @bind="editDescription" @onkeydown="(e) => OnEditKeyDown(e, layer.Key)" />
+                    <div>
+                        
+                        <button class="btn btn-sm btn-success me-1" @onclick="() => SaveEdit(layer.Key)"><i class="bi bi-check"></i></button>
+                        <button class="btn btn-sm btn-secondary me-1" @onclick="CancelEdit"><i class="bi bi-x"></i></button>
+                    </div>
+                }
+                else
+                {
+                    <div>
+                        <input type="radio" class="form-check-input me-2" name="layerRadio" value="@layer" checked="@(layer.Key == ActiveLayer)" @onchange="() => OnLayerSelected.InvokeAsync(layer.Key)" />
+                        <span class="me-2">Layer @layer.Value.Name</span>
+                        <span class="me-2 text-muted">@layer.Value.Description</span>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary me-1" title="Edit Layer" @onclick="() => StartEdit(layer.Key)"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-outline-danger ms-auto" title="Remove Layer" @onclick="() => OnRemoveLayer.InvokeAsync(layer.Key)"><i class="bi bi-trash"></i></button>
+                    </div>
+                }
+
+            </div>
+        }
+    </div>
+    <button class="btn btn-sm btn-outline-primary mt-2 w-100" @onclick="OnAddLayerClicked"><i class="bi bi-plus"></i> Add Layer</button>
+</div>
+
+@code {
+    [Parameter] public Dictionary<int, TileMap> Layers { get; set; } = new();
+    [Parameter] public int ActiveLayer { get; set; }
+    [Parameter] public EventCallback<int> OnLayerSelected { get; set; }
+    [Parameter] public EventCallback<int> OnRemoveLayer { get; set; }
+    [Parameter] public EventCallback OnAddLayer { get; set; }
+
+    private int? editingLayer = null;
+    private string editName = string.Empty;
+    private string editDescription = string.Empty;
+
+    private void OnAddLayerClicked()
+    {
+        OnAddLayer.InvokeAsync();
+    }
+
+    private void StartEdit(int layerKey)
+    {
+        editingLayer = layerKey;
+        if (Layers.TryGetValue(layerKey, out var map))
+        {
+            editName = map.Name;
+            editDescription = map.Description ?? string.Empty;
+        }
+    }
+    private void CancelEdit()
+    {
+        editingLayer = null;
+        editName = string.Empty;
+        editDescription = string.Empty;
+    }
+    private void SaveEdit(int layerKey)
+    {
+        if (Layers.TryGetValue(layerKey, out var map))
+        {
+            map.Name = editName;
+            map.Description = editDescription;
+        }
+        CancelEdit();
+    }
+    private void OnEditKeyDown(KeyboardEventArgs e, int layerKey)
+    {
+        if (e.Key == "Enter")
+        {
+            SaveEdit(layerKey);
+        }
+        else if (e.Key == "Escape")
+        {
+            CancelEdit();
+        }
+    }
+}

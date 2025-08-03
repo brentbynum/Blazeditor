@@ -5,7 +5,7 @@
     let cellSize = 32; // 32x32 grid
     let mapSize = { width: 1, height: 1 }; // Store area size (in cells)
     let running = false;
-    let hoveredCell = { x: -1, y: -1, level: 0 };
+    let hoveredCell = { x: -1, y: -1, layer: 0 };
     let selectedTileId = null;
     let dotNetRef = null;
     var showGrid = true;
@@ -15,10 +15,10 @@
     const maxScale = 4;
     let selectedCells = [];
     let tilePalette = [];
-    let activeLevel = 0;
+    let activeLayer = 0;
     let isMouseOver = false;
     function cellsEqual(a, b) {
-        return a.x === b.x && a.y === b.y && a.level === b.level;
+        return a.x === b.x && a.y === b.y && a.layer === b.layer;
     }
     function cellInCollection(cell, collection) {
         return collection.some(c => cellsEqual(c, cell));
@@ -31,7 +31,7 @@
         const maxY = Math.max(a.y, b.y);
         for (let x = minX; x <= maxX; x++) {
             for (let y = minY; y <= maxY; y++) {
-                cells.push({ x, y, level: a.level });
+                cells.push({ x, y, layer: a.layer });
             }
         }
         return cells;
@@ -42,12 +42,12 @@
             active = false;
             return {
                 cursor: "url('/cursors/paint.png'), auto",
-                click: (x, y, level) => {
+                click: (x, y, layer) => {
                     if (dotNetRef && selectedTileId !== null) {
-                        dotNetRef.invokeMethodAsync('OnJsPlaceTile', selectedTileId, x, y, level);
+                        dotNetRef.invokeMethodAsync('OnJsPlaceTile', selectedTileId, x, y, layer);
                     }
                 },
-                drawOverlay: (ctx, x, y, level) => {
+                drawOverlay: (ctx, x, y, layer) => {
                     if (active && selectedTileId !== null && tilePalette) {
                         const tile = tilePalette[selectedTileId];
                         if (tile) {
@@ -61,7 +61,7 @@
                                 ctx.save();
                                 ctx.globalAlpha = 0.5;
                                 // Draw overlay at 32x32 grid
-                                ctx.drawImage(tile._overlayImage, x * cellSize, y * cellSize, tile.size.width, tile.size.height);
+                                ctx.drawImage(tile._overlayImage, x * cellSize, y * cellSize, tile.size.width * 64, tile.size.height*64);
                                 ctx.restore();
                             }
                         }
@@ -77,8 +77,8 @@
         })(),
         select: {
             cursor: "url('/cursors/select.png'), auto",
-            click: (x, y, level, e) => {
-                const cell = { x, y, level };
+            click: (x, y, layer, e) => {
+                const cell = { x, y, layer };
                 if (e && e.shiftKey) {
                     if (selectedCells.length > 0) {
                         const last = selectedCells[selectedCells.length - 1];
@@ -118,19 +118,19 @@
         },
         fill: {
             cursor: "url('/cursors/fill.png'), auto",
-            click: (x, y, level, e) => {
+            click: (x, y, layer, e) => {
                 if (dotNetRef) {
                     // Pass ctrlKey to C# for alternate fill mode
                     const ctrlKey = e && e.ctrlKey;
-                    dotNetRef.invokeMethodAsync('OnJsFill', selectedTileId, x, y, level, ctrlKey);
+                    dotNetRef.invokeMethodAsync('OnJsFill', selectedTileId, x, y, layer, ctrlKey);
                 }
             }
         },
         erase: {
             cursor: "url('/cursors/erase.png'), auto",
-            click: (x, y, level) => {
+            click: (x, y, layer) => {
                 if (dotNetRef) {
-                    dotNetRef.invokeMethodAsync('OnJsRemoveTile', x, y, level);
+                    dotNetRef.invokeMethodAsync('OnJsRemoveTile', x, y, layer);
                 }
             }
         },
@@ -241,25 +241,25 @@
             if (!positions) return;
             if (positions.length) {
                 positions.forEach(pos => {
-                    let map = tileMaps[pos.level];
+                    let map = tileMaps[pos.layer];
                     if (Array.isArray(map.tilePlacements)) {
-                        map.tilePlacements[pos.y * (mapSize.width / 32) + pos.x] = pos;
+                        map.tilePlacements[pos.y * mapSize.width + pos.x] = pos;
                     }
                 });
             } else {
                 let pos = positions;
-                let map = tileMaps[pos.level];
+                let map = tileMaps[pos.layer];
                 if (Array.isArray(map.tilePlacements)) {
-                    map.tilePlacements[pos.y * (mapSize.width / 32) + pos.x] = pos;
+                    map.tilePlacements[pos.y * mapSize.width + pos.x] = pos;
                 }
             }
         },
         setShowGrid: function (val) {
             showGrid = val;
         },
-        setActiveLevel: function (level) {
-            activeLevel = level;
-            hoveredCell.level = level; // Update hovered cell level
+        setActiveLayer: function (layer) {
+            activeLayer = layer;
+            hoveredCell.layer = layer; // Update hovered cell layer
         },
         selectTool(toolId) {
             selectedTool = tools[toolId] || tools.paint;
@@ -302,7 +302,7 @@
             const worldY = origin.y + pos.y / scale;
             hoveredCell.x = Math.floor(worldX / cellSize);
             hoveredCell.y = Math.floor(worldY / cellSize);
-            hoveredCell.level = activeLevel; 
+            hoveredCell.layer = activeLayer; 
 
             if (selectedTool.mousemove) {
                 selectedTool.mousemove(pos);
@@ -318,7 +318,7 @@
             const x = Math.floor(worldX / cellSize);
             const y = Math.floor(worldY / cellSize);
             if (selectedTool.click) {
-                selectedTool.click(x, y, activeLevel, e);
+                selectedTool.click(x, y, activeLayer, e);
             }
         },
         drawTiles: function () {
@@ -388,7 +388,7 @@
                     }
                     // Draw tile overlay for the hovered cell
                     if (selectedTool.drawOverlay && x === hoveredCell.x && y === hoveredCell.y) {
-                        selectedTool.drawOverlay(ctx, x, y, hoveredCell.level);
+                        selectedTool.drawOverlay(ctx, x, y, hoveredCell.layer);
                     }
                 }
             }

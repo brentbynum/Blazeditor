@@ -1,4 +1,5 @@
 using Blazeditor.Application.Models;
+using Blazeditor.Application.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using System.Threading.Tasks;
@@ -7,8 +8,9 @@ namespace Blazeditor.Application.Components.Dialogs;
 
 public partial class TilePaletteCanvas : IDisposable
 {
+    [Inject] public DefinitionManager Definition { get; set; } = default!;
     private ElementReference canvasRef;
-    [Parameter] public Area? Area { get; set; }
+    [Parameter] public required Area Area { get; set; }
 
     [Parameter] public EventCallback<int> OnTileSelected { get; set; }
 
@@ -36,13 +38,15 @@ public partial class TilePaletteCanvas : IDisposable
             }
             _firstRenderDone = true;
         }
-        if (_firstRenderDone && _shouldInitJs && Area?.TilePalette != null && JS != null)
+        if (Area.TilePaletteId.HasValue)
         {
-            // Ask JS to calculate and set the required canvas height
-            var height = await JS.InvokeAsync<int>("tilePaletteCanvas.calculateRequiredHeight", Area?.TilePalette, Area?.CellSize, 512);
-            await JS.InvokeVoidAsync("tilePaletteCanvas.setCanvasHeight", canvasRef, height);
-            await JS.InvokeVoidAsync("tilePaletteCanvas.init", canvasRef, Area?.TilePalette, Area?.CellSize);
-            _shouldInitJs = false;
+            var palette = Definition.GetPalette(Area.TilePaletteId.Value);
+            if (_firstRenderDone && _shouldInitJs && palette != null && JS != null)
+            {
+                // Ask JS to calculate and set the required canvas height and initialize with the area palette and cell size
+                await JS.InvokeVoidAsync("tilePaletteCanvas.init", canvasRef, palette.Tiles, Area.CellSize);
+                _shouldInitJs = false;
+            }
         }
     }
 

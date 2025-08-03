@@ -4,7 +4,7 @@ public struct Coordinate(int x, int y, int level = 0)
 {
     public int X { get; set; } = x;
     public int Y { get; set; } = y;
-    public int Level { get; set; } = level; // Default level is 0
+    public int Layer { get; set; } = level; // Default level is 0
 }
 
 public struct Size(int width, int height)

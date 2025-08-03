@@ -13,43 +13,47 @@ public class TileMap : BaseEntity
 {
     private Size _size32; // Size in 32x32 grid units
     public TileMap() : base() { }
-    public TileMap(string name, string description, int level, Size sizeInPixels) : base(name, description)
+    public TileMap(string name, string description, int layer, Size size) : base(name, description)
     {
-        Level = level;
+        Layer = layer;
         // Convert pixel size to 32x32 grid units
-        _size32 = new Size(sizeInPixels.Width / 32, sizeInPixels.Height / 32);
+        _size32 = size;
         TilePlacements = new TilePlacement?[_size32.Width * _size32.Height];
     }
-    public int Level { get; set; }
+    public int Layer { get; set; }
     // Store tile placements for persistence (32x32 grid)
-    public TilePlacement?[] TilePlacements { get; set; } = Array.Empty<TilePlacement?>();
+    public TilePlacement?[] TilePlacements { get; set; } = [];
+
+    public int? this[int x, int y]
+    {
+        get => GetPlacement(x, y)?.TileId;
+        set => SetPlacement(x, y, value);
+    }
 
     // Size in 32x32 grid units
     public Size Size => _size32;
 
     private int GetKey(int x, int y) => x + y * _size32.Width;
 
-    public void Resize(Size newSizeInPixels)
+    public void Resize(Size newSize32)
     {
-        if (newSizeInPixels.Width <= 0 || newSizeInPixels.Height <= 0)
-            throw new ArgumentException("Size must be greater than zero.");
-        var newSize32 = new Size(newSizeInPixels.Width / 32, newSizeInPixels.Height / 32);
         var newArray = new TilePlacement?[newSize32.Width * newSize32.Height];
-        for (int y = 0; y < Math.Min(_size32.Height, newSize32.Height); y++)
+        _size32 = newSize32;
+        for (int y = 0; y < newSize32.Height; y++)
         {
-            for (int x = 0; x < Math.Min(_size32.Width, newSize32.Width); x++)
+            for (int x = 0; x < newSize32.Width; x++)
             {
                 int oldIdx = GetKey(x, y);
                 int newIdx = x + y * newSize32.Width;
-                newArray[newIdx] = TilePlacements[oldIdx];
+                newArray[newIdx] = oldIdx < TilePlacements.Length ? TilePlacements[oldIdx] : null;
             }
         }
         TilePlacements = newArray;
-        _size32 = newSize32;
+        
     }
 
     // Get tile placement at (x, y) in 32x32 grid units
-    public TilePlacement? GetPlacement(int x, int y)
+    private TilePlacement? GetPlacement(int x, int y)
     {
         int idx = GetKey(x, y);
         if (idx < 0 || idx >= TilePlacements.Length) return null;

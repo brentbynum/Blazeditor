@@ -12,7 +12,7 @@
     <div class="area-editor-canvas">
         @if (Area != null)
         {
-            <TileMapCanvas @ref="TileMapCanvas" Area="@Area" SelectedTileId="@(SelectedTile != null ? SelectedTile.Id : -1)" ActiveLevel="@ActiveLevel" />
+            <TileMapCanvas @ref="TileMapCanvas" Area="@Area" SelectedTileId="@(SelectedTile != null ? SelectedTile.Id : -1)" ActiveLayer="@ActiveLayer" />
         }
     </div>
     <div class="area-editor-sidebar">
@@ -29,8 +29,18 @@
         }
         @if (Area != null)
         {
+            <div class="mb-3">
+                <label for="paletteSelect" class="form-label">Tile Palette</label>
+                <select id="paletteSelect" class="form-select" @onchange="OnPaletteChanged" value="@Area.TilePaletteId">
+                    <option value="">-- Select Palette --</option>
+                    @foreach (var palette in Definition.GetTilePalettes())
+                    {
+                        <option value="@palette.Id" selected="@(Area.TilePaletteId == palette.Id)">@palette.Name</option>
+                    }
+                </select>
+            </div>
             <TilePaletteCanvas @ref=TilePaletteCanvas Area="@Area" OnTileSelected="OnTileSelected" OnPaletteImport="OnPaletteImport" />
-            <MapLevelSelector Levels="Area.TileMaps" ActiveLevel="@ActiveLevel" OnLevelSelected="OnLevelSelected" OnRemoveLevel="OnRemoveLevel" OnAddLevel="OnAddLevel" />
+            <MapLayerSelector Layers="Area.TileMaps" ActiveLayer="@ActiveLayer" OnLayerSelected="OnLayerSelected" OnRemoveLayer="OnRemoveLayer" OnAddLayer="OnAddLayer" />
             @if (SelectedTile != null)
             {
                 <div class="area-editor-selected-tile">
@@ -44,4 +54,17 @@
         }
     </div>
 </div>
+
+@code {
+    private async Task OnPaletteChanged(ChangeEventArgs e)
+    {
+        if (Area == null) return;
+        if (int.TryParse(e.Value?.ToString(), out int newPaletteId))
+        {
+            Area.TilePaletteId = newPaletteId;
+            await Definition.SaveAsync();
+            StateHasChanged();
+        }
+    }
+}
 

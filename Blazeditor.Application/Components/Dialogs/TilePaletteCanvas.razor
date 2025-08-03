@@ -1,12 +1,17 @@
 @using Blazeditor.Application.Models
 @inject IJSRuntime JS
-<ImportTilePalette @ref="popupRef" OnConfirm="HandleInput" CellSize="@(Area?.CellSize ?? 64)" />
 <div id="paletteHeader">
     <div><h3>Tile Palette</h3></div>
-    <div @onclick="ShowImportTilePalette" class="btn btn-outline-secondary"><i class="bi bi-box-arrow-in-down"></i></div>
 </div>
-<div style="height: 400px; overflow-y: auto; border:1px solid #ccc; background:#f8f9fa;">
-    <canvas @ref="canvasRef" width="512" style="width:100%; display:block; cursor: pointer;"></canvas>
-</div>
+@if (Area.TilePaletteId.HasValue)
+{
+    <div style="height: 400px; overflow-y: auto; border:1px solid #ccc; background:#f8f9fa;">
+        <canvas @ref="canvasRef" width="512" style="width:100%; display:block; cursor: pointer;"></canvas>
+    </div>
+}
+else
+{
+    <div class="alert alert-info">No tile palette selected for this area.</div>
+}
 
 

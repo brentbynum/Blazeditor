@@ -22,15 +22,30 @@
     }
     window.tilePaletteCanvas = {
         init: function (canvas, tiles, cellSizeArg) {
+            
+
+            cellSize = cellSizeArg || { width: 64, height: 64 };
+            // Use a bin packer to simulate placement and get the max Y
+            let bin = new MaxRectsBin(canvas.width, 100000); // Large height
+            let maxY = 0;
+            Object.keys(tiles).forEach(key => {
+                let w = tiles[key].size.width * cellSize;
+                let h = tiles[key].size.height * cellSize;
+                let pos = bin.insert(w, h);
+                if (pos) {
+                    maxY = Math.max(maxY, pos.y + h);
+                }
+            });
+            // Add a little padding
+            canvas.height = Math.ceil(maxY + 8);
+
             paletteCanvas = canvas;
             paletteCanvas.onmousemove = this.mousemove;
             paletteCanvas.onmouseleave = this.onmouseleave;
             paletteCanvas.onclick = this.click;
             paletteContext = paletteCanvas.getContext('2d');
             paletteTiles = Object.values(tiles).slice().sort((a, b) => (b.size.width * b.size.height) - (a.size.width * a.size.height));
-            if (cellSizeArg) {
-                cellSize = cellSizeArg;
-            }
+
             // Now we need to iterate all of the tiles and set their initial state
             for (let tile of paletteTiles) {
                 if (!(tile.image && tile.image.startsWith('data:image'))) {
@@ -122,23 +137,7 @@
             }
         },
         calculateRequiredHeight: function (tiles, cellSizeArg, canvasWidth) {
-            let cellSize = cellSizeArg || { width: 64, height: 64 };
-            // Use a bin packer to simulate placement and get the max Y
-            let bin = new MaxRectsBin(canvasWidth, 100000); // Large height
-            let maxY = 0;
-            Object.keys(tiles).forEach(key => {
-                let w = tiles[key].size.width * cellSize;
-                let h = tiles[key].size.height * cellSize;
-                let pos = bin.insert(w, h);
-                if (pos) {
-                    maxY = Math.max(maxY, pos.y + h);
-                }
-            });
-            // Add a little padding
-            return Math.ceil(maxY + 8);
-        },
-        setCanvasHeight: function (canvas, height) {
-            canvas.height = height;
+
         },
         startRenderLoop: function () {
             running = true;

@@ -14,8 +14,10 @@ public class Tile : BaseEntity
     public string Type { get; set; } = string.Empty;
     public string Image { get; set; } = string.Empty;
     public Size Size { get; set; } = new Size(1, 1);
+    public int Elevation { get; set; } = 0; // Elevation property for vertical offset
     [BsonIgnore]
     public TileState PaletteState { get; set; }
+   
 }
 
 public struct TileState

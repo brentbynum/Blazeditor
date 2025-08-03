@@ -8,7 +8,7 @@ public class Area : BaseEntity
         Size = size ?? new Size(1, 1);
         CellSize = cellSize ?? 64;
     }
-    public Dictionary<int, Tile> TilePalette { get; set; } = new();
+    public int? TilePaletteId { get; set; }
     public Dictionary<int, TileMap> TileMaps { get; set; } = new();
     private Size _size = new(1, 1); // Default size
     public Size Size

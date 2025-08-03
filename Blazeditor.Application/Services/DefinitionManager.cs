@@ -4,8 +4,6 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Formats.Png;
-using LiteDB;
-
 using Size = Blazeditor.Application.Models.Size;
 using System.Text.Json.Serialization;
 
@@ -13,8 +11,7 @@ namespace Blazeditor.Application.Services;
 
 public class DefinitionManager : IDisposable
 {
-    private readonly LiteDatabase _db;
-    private readonly string _userKey;
+    private readonly DefinitionSerializerService _serializerService;
     public bool IsDirty { get; private set; } = false;
     private Definition _definition = new Definition();
     public Area? SelectedArea { get; set; }
@@ -36,9 +33,7 @@ public class DefinitionManager : IDisposable
     public DefinitionManager(IHttpContextAccessor httpContextAccessor)
     {
         Console.WriteLine("Creating DefinitionManager.");
-        _db = new LiteDatabase("Filename=definitions.db;Connection=shared");
-        var user = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "guest";
-        _userKey = user;
+        _serializerService = new DefinitionSerializerService(httpContextAccessor);
         LoadDefinitionAsync().GetAwaiter().GetResult();
     }
 
@@ -46,8 +41,8 @@ public class DefinitionManager : IDisposable
     {
         if (!_definition.Areas.TryGetValue(areaId, out var area)) return;
         if (!area.TileMaps.TryGetValue(level, out var map)) return;
-        var oldPlacement = map.GetPlacement(x, y);
-        var oldTile = oldPlacement != null && oldPlacement.TileId.HasValue && area.TilePalette.TryGetValue(oldPlacement.TileId.Value, out var t) ? t : null;
+        var oldPlacement = map[x, y];
+        var oldTile = oldPlacement != null && oldPlacement.HasValue && area.TilePaletteId.HasValue && GetPalette(area.TilePaletteId.Value).Tiles.TryGetValue(oldPlacement.Value, out var t) ? t : null;
         var undo = new TileEditUndo
         {
             AreaId = areaId,
@@ -92,10 +87,7 @@ public class DefinitionManager : IDisposable
     {
         try
         {
-            var col = _db.GetCollection<Definition>("definitions");
-            // No need to update TilePlacements
-            col.Upsert(_userKey, _definition);
-            _db.Checkpoint();
+            _serializerService.SaveDefinition(_definition);
             IsDirty = false;
         }
         catch (Exception ex)
@@ -109,10 +101,7 @@ public class DefinitionManager : IDisposable
     {
         try
         {
-            var col = _db.GetCollection<Definition>("definitions");
-            var loaded = col.FindById(_userKey);
-            if (loaded != null)
-                _definition = loaded;
+            _definition = _serializerService.LoadDefinition();
             foreach (var area in _definition.Areas)
             {
                 foreach (var tileMap in area.Value.TileMaps)
@@ -163,13 +152,45 @@ public class DefinitionManager : IDisposable
         OnChanged?.Invoke(_definition);
     }
 
+    public bool IsPaletteUsed(int paletteId)
+    {
+        return _definition.Areas.Values.Any(a => a.TilePaletteId == paletteId);
+    }
+
+    public void RemoveTilePalette(int paletteId)
+    {
+        if (!_definition.TilePalettes.ContainsKey(paletteId))
+            throw new KeyNotFoundException($"Tile palette with ID {paletteId} not found.");
+        if (_definition.Areas.Values.Any(a => a.TilePaletteId == paletteId))
+            throw new InvalidOperationException($"Cannot remove tile palette {paletteId} because it is still in use by one or more areas.");
+        if (_definition.TilePalettes.Remove(paletteId))
+        {
+            MarkDirty();
+            OnChanged?.Invoke(_definition);
+        }
+    }
+
+    public TilePalette GetPalette(int paletteId)
+    {
+        if (_definition.TilePalettes.TryGetValue(paletteId, out var palette))
+            return palette;
+        throw new KeyNotFoundException($"Tile palette with ID {paletteId} not found.");
+    }
+
+    public IEnumerable<TilePalette> GetTilePalettes()
+    {
+        return _definition.TilePalettes.Values;
+    }
+
     public List<string?> GetTileImageFilenames()
     {
         // Return all unique image filenames from all tile palettes
         var filenames = new HashSet<string?>();
         foreach (var area in _definition.Areas.Values)
         {
-            foreach (var tile in area.TilePalette.Values)
+            if (area.TilePaletteId == null || !_definition.TilePalettes.TryGetValue(area.TilePaletteId.Value, out var palette))
+                continue;
+            foreach (var tile in palette.Tiles.Values)
             {
                 if (!string.IsNullOrEmpty(tile.Image))
                     filenames.Add(tile.Image);
@@ -181,14 +202,14 @@ public class DefinitionManager : IDisposable
     public Dictionary<int, Tile> ExtractTilesFromImage(string filename)
     {
         if (string.IsNullOrWhiteSpace(filename)) throw new ArgumentException("Filename cannot be null or empty.", nameof(filename));
-        var baseName = System.IO.Path.GetFileNameWithoutExtension(filename);
-        var imagePath = System.IO.Path.Combine("wwwroot", "tilesets", baseName + ".png");
-        var jsonPath = System.IO.Path.Combine("wwwroot", "tilesets", baseName + ".json");
+        var baseName = Path.GetFileNameWithoutExtension(filename);
+        var imagePath = Path.Combine("wwwroot", "tilesets", baseName + ".png");
+        var jsonPath = Path.Combine("wwwroot", "tilesets", baseName + ".json");
 
-        if (!System.IO.File.Exists(imagePath)) throw new FileNotFoundException($"Image file not found: {imagePath}");
-        if (!System.IO.File.Exists(jsonPath)) throw new FileNotFoundException($"JSON file not found: {jsonPath}");
+        if (!File.Exists(imagePath)) throw new FileNotFoundException($"Image file not found: {imagePath}");
+        if (!File.Exists(jsonPath)) throw new FileNotFoundException($"JSON file not found: {jsonPath}");
 
-        var json = System.IO.File.ReadAllText(jsonPath);
+        var json = File.ReadAllText(jsonPath);
         var doc = JsonDocument.Parse(json);
         var tiles = doc.RootElement.GetProperty("tiles");
         var cellSizeVal = doc.RootElement.GetProperty("cellSize").GetInt32();
@@ -234,22 +255,22 @@ public class DefinitionManager : IDisposable
     public Dictionary<int, Tile> ExtractTilesFromJsonTilesheet(string jsonFilename)
     {
         if (string.IsNullOrWhiteSpace(jsonFilename)) throw new ArgumentException("Filename cannot be null or empty.", nameof(jsonFilename));
-        var jsonPath = System.IO.Path.Combine("wwwroot", "tilesets", jsonFilename);
-        if (!System.IO.File.Exists(jsonPath)) throw new FileNotFoundException($"JSON file not found: {jsonPath}");
-        var json = System.IO.File.ReadAllText(jsonPath);
+        var jsonPath = Path.Combine("wwwroot", "tilesets", jsonFilename);
+        if (!File.Exists(jsonPath)) throw new FileNotFoundException($"JSON file not found: {jsonPath}");
+        var json = File.ReadAllText(jsonPath);
         var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
         var tiles = root.GetProperty("tiles");
         var cellSizeVal = root.GetProperty("cellSize").GetInt32();
         var cellSize = new Size { Width = cellSizeVal, Height = cellSizeVal };
-        var sheets = root.GetProperty("sheets").EnumerateArray().Select(s => s.GetString()).ToList();
+        var sheets = root.GetProperty("sheets").EnumerateArray().Select(s => s.GetString()).ToList() ?? [];
         var result = new Dictionary<int, Tile>();
         // Load all sheet images
         var sheetImages = new List<Image<Rgba32>>();
         foreach (var sheet in sheets)
         {
-            var imagePath = System.IO.Path.Combine("wwwroot", "tilesets", sheet);
-            if (!System.IO.File.Exists(imagePath)) throw new FileNotFoundException($"Image file not found: {imagePath}");
+            var imagePath = Path.Combine("wwwroot", "tilesets", sheet!);
+            if (!File.Exists(imagePath)) throw new FileNotFoundException($"Image file not found: {imagePath}");
             sheetImages.Add(Image.Load<Rgba32>(imagePath));
         }
         foreach (var tileElem in tiles.EnumerateArray())
@@ -283,44 +304,45 @@ public class DefinitionManager : IDisposable
         return result;
     }
 
-    public async Task<Dictionary<int, Tile>> AddTilePaletteToArea(Area area, string jsonFilename, int cellWidth = 64, int cellHeight = 64)
+    public TilePalette ImportTileset(string jsonFilename, int? paletteId)
     {
         Dictionary<int, Tile> tiles = new Dictionary<int, Tile>();
-        var jsonPath = System.IO.Path.Combine("wwwroot", "tilesets", jsonFilename);
-        if (System.IO.File.Exists(jsonPath))
+        var jsonPath = Path.Combine("wwwroot", "tilesets", jsonFilename);
+        if (File.Exists(jsonPath))
         {
             tiles = ExtractTilesFromJsonTilesheet(jsonFilename);
         }
+
+        TilePalette palette;
+        if (paletteId.HasValue && _definition.TilePalettes.TryGetValue(paletteId.Value, out var existingPalette))
+        {
+            // Use existing palette
+            palette = existingPalette;
+        }
         else
         {
-            // Fallback: treat as a single tile (should not happen for new workflow)
-            var imagePath = System.IO.Path.Combine("wwwroot", "tilesets", jsonFilename);
-            if (!System.IO.File.Exists(imagePath))
-                throw new FileNotFoundException($"Image file not found: {imagePath}");
-            using var image = Image.Load<Rgba32>(imagePath);
-            using var ms = new MemoryStream();
-            image.Save(ms, new PngEncoder());
-            var base64 = $"data:image/png;base64,{Convert.ToBase64String(ms.ToArray())}";
-            var tile = new Tile(jsonFilename, $"Imported from {jsonFilename}", "default", base64, new Size(cellWidth, cellHeight));
-            tiles = new Dictionary<int, Tile> { { tile.Id, tile } };
+            // Create new palette
+            var name = Path.GetFileNameWithoutExtension(jsonFilename);
+            var description = $"Imported from {jsonFilename}";
+            palette = new TilePalette(name, description);
+            _definition.TilePalettes[palette.Id] = palette;
         }
         foreach (var tile in tiles.Values)
         {
-            if (area.TilePalette.ContainsKey(tile.Id))
+            if (palette.Tiles.ContainsKey(tile.Id))
             {
                 // If tile already exists, skip it
                 continue;
             }
-            area.TilePalette[tile.Id] = tile;
+            palette.Tiles[tile.Id] = tile;
         }
-        await SaveAsync();
         MarkDirty();
         OnChanged?.Invoke(_definition);
-        return tiles;
+        return palette;
     }
 
     public void Dispose()
     {
-        _db.Dispose();
+        // No longer need to dispose LiteDatabase here, handled by serializer service if needed
     }
 }

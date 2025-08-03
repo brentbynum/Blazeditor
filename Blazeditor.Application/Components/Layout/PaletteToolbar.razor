@@ -1,0 +1,34 @@
+@using Blazeditor.Application.Services
+@using Blazeditor.Application.Components.Dialogs
+@inject DefinitionManager Definition
+
+<div class="toolbar bg-light py-2 px-3 d-flex align-items-center">
+    <button class="btn btn-success me-2" @onclick="ShowImportPaletteDialog">Import Palette</button>
+    @if (showImportPaletteDialog)
+    {
+        <ImportTilePalette @ref="importPaletteRef" OnConfirm="HandleImportPalette" />
+    }
+</div>
+
+@code {
+    private bool showImportPaletteDialog = false;
+    private ImportTilePalette? importPaletteRef;
+    private void ShowImportPaletteDialog()
+    {
+        showImportPaletteDialog = true;
+        // Show the modal dialog
+        importPaletteRef?.Show();
+    }
+    private void HideImportPaletteDialog() => showImportPaletteDialog = false;
+
+    private async Task HandleImportPalette((string filename, int cellWidth, int cellHeight) importInfo)
+    {
+        if (!string.IsNullOrEmpty(importInfo.filename))
+        {
+            Definition.ImportTileset(importInfo.filename, null);
+            await Definition.SaveAsync();
+        }
+        showImportPaletteDialog = false;
+        StateHasChanged();
+    }
+}

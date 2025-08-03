@@ -1,5 +1,6 @@
 using Blazeditor.Application.Components.Dialogs;
 using Blazeditor.Application.Models;
+using Blazeditor.Application.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
@@ -10,7 +11,7 @@ public partial class AreaEditor : IDisposable
     [Parameter]
     public int AreaId { get; set; }
     public Tile? SelectedTile { get; set; }
-    public int ActiveLevel { get; set; } = 0;
+    public int ActiveLayer { get; set; } = 0;
     public required Area Area { get; set; }
     private DotNetObjectReference<AreaEditor>? dotNetRef;
     private int? previousAreaId = null;
@@ -42,28 +43,33 @@ public partial class AreaEditor : IDisposable
 
     public void OnTileSelected(int tileId)
     {
-        SelectedTile = Area.TilePalette[tileId];
+        if (Area == null || Area.TilePaletteId == null)
+        {
+            SelectedTile = null;
+            return;
+        }
+        SelectedTile = Definition.GetPalette(Area.TilePaletteId.Value).Tiles[tileId];
         StateHasChanged();
     }
-    public void OnLevelSelected(int level)
+    public void OnLayerSelected(int layer)
     {
-        ActiveLevel = level;
+        ActiveLayer = layer;
         StateHasChanged();
     }
-    public async Task OnAddLevel()
+    public async Task OnAddLayer()
     {
-        int newLevel = Area.TileMaps.Count > 0 ? Area.TileMaps.Keys.Max() + 1 : 0;
-        Area.TileMaps[newLevel] = new TileMap($"Level {newLevel}", $"Tile map for level {newLevel}", newLevel, Area.Size);
-        ActiveLevel = newLevel;
+        int newLayer = Area.TileMaps.Count > 0 ? Area.TileMaps.Keys.Max() + 1 : 0;
+        Area.TileMaps[newLayer] = new TileMap($"Layer {newLayer}", $"Tile map for layer {newLayer}", newLayer, Area.Size);
+        ActiveLayer = newLayer;
         await JS.InvokeVoidAsync("tileMapCanvas.updateTileMaps", Area.TileMaps);
         StateHasChanged();
     }
-    public async Task OnRemoveLevel()
+    public async Task OnRemoveLayer()
     {
-        if (Area.TileMaps.TryGetValue(ActiveLevel, out _))
+        if (Area.TileMaps.TryGetValue(ActiveLayer, out _))
         {
-            Area.TileMaps.Remove(ActiveLevel);
-            ActiveLevel = Area.TileMaps.Keys.FirstOrDefault();
+            Area.TileMaps.Remove(ActiveLayer);
+            ActiveLayer = Area.TileMaps.Keys.FirstOrDefault();
             await JS.InvokeVoidAsync("tileMapCanvas.updateTileMaps", Area.TileMaps);
             StateHasChanged();
         }
@@ -71,15 +77,16 @@ public partial class AreaEditor : IDisposable
 
     private async Task OnPaletteImport(PaletteImportEventArgs paletteImportEventArgs)
     {
-        await Definition.AddTilePaletteToArea(Area, paletteImportEventArgs.FileName, paletteImportEventArgs.CellSize.Width, paletteImportEventArgs.CellSize.Height);
-        Area = Definition.GetAreas().FirstOrDefault(a => a.Id == AreaId) ?? throw new InvalidOperationException($"Area with ID {AreaId} not found.");
+        var palette = Definition.ImportTileset(paletteImportEventArgs.FileName, null);
+        Area.TilePaletteId = palette.Id;
         await TileMapCanvas.UpdateTilePalette();
+        await Definition.SaveAsync();
         StateHasChanged();
     }
 
     public async Task DeleteSelectedTile()
     {
-        if (Area != null && SelectedTile != null)
+        if (Area != null && SelectedTile != null && Area.TilePaletteId.HasValue)
         {
             // Check if the tile is referenced in any TileMap
             bool isReferenced = Area.TileMaps.Values.Any(map =>
@@ -91,7 +98,7 @@ public partial class AreaEditor : IDisposable
                 // TODO: Add user feedback for failed delete
                 return;
             }
-            Area.TilePalette.Remove(SelectedTile.Id);
+            Definition.GetPalette(Area.TilePaletteId.Value).Tiles.Remove(SelectedTile.Id);
             SelectedTile = null;
             await Definition.SaveAsync();
             StateHasChanged();
