@@ -16,8 +16,6 @@ public partial class TilePaletteCanvas : IDisposable
 
     private DotNetObjectReference<TilePaletteCanvas>? dotNetRef;
 
-    private ImportTilePalette? popupRef;
-
     private bool _shouldInitJs = false;
     private bool _firstRenderDone = false;
 
@@ -57,15 +55,6 @@ public partial class TilePaletteCanvas : IDisposable
         {
             await OnTileSelected.InvokeAsync(tileId);
         }
-    }
-
-    private void ShowImportTilePalette()
-    {
-        if (popupRef == null)
-        {
-            return;
-        }
-        popupRef.Show();
     }
 
     public void Dispose()

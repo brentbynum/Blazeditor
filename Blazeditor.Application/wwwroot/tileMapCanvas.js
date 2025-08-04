@@ -44,7 +44,7 @@
                 cursor: "url('/cursors/paint.png'), auto",
                 click: (x, y, layer) => {
                     if (dotNetRef && selectedTileId !== null) {
-                        dotNetRef.invokeMethodAsync('OnJsPlaceTile', selectedTileId, x, y, layer);
+                        dotNetRef.invokeMethodAsync('OnJsPlaceTile', x, y, layer);
                     }
                 },
                 drawOverlay: (ctx, x, y, layer) => {
@@ -122,7 +122,7 @@
                 if (dotNetRef) {
                     // Pass ctrlKey to C# for alternate fill mode
                     const ctrlKey = e && e.ctrlKey;
-                    dotNetRef.invokeMethodAsync('OnJsFill', selectedTileId, x, y, layer, ctrlKey);
+                    dotNetRef.invokeMethodAsync('OnJsFill', x, y, layer, ctrlKey);
                 }
             }
         },
@@ -358,7 +358,7 @@
                     }
                     if (tile && tile.image && tile.image.startsWith('data:image') && tile.layout.isLoaded) {
                         // Draw at 32x32 grid
-                        ctx.drawImage(tile.layout.image, x * cellSize, y * cellSize, tile.size.width * 64, tile.size.height *64);
+                        ctx.drawImage(tile.layout.image, x * cellSize, y * cellSize, tile.size.width * 64, tile.size.height * 64); // TODO: The cell size should be read from the palette instead of hard-coded to 64
                     }
                 }
             }

@@ -120,10 +120,10 @@ public partial class TileMapCanvas : IDisposable
     }
 
     [JSInvokable]
-    public void OnJsPlaceTile(int tileId, int x, int y, int layer)
+    public void OnJsPlaceTile(int x, int y, int layer)
     {
         var areaId = Area.Id;
-        if (SelectedTile != null)
+        if (SelectedTile != null && JS != null)
         {
             if (Area.TilePaletteIds.Contains(SelectedTile.SourcePaletteId) == false)
             {
@@ -139,7 +139,7 @@ public partial class TileMapCanvas : IDisposable
                 {
                     if (JS != null)
                     {
-                        var updates = new[] { new { x, y, layer, tileId, paletteId = palette.Id } };
+                        var updates = new[] { new { x, y, layer, tileId = SelectedTile.Id, paletteId = palette.Id } };
                         JS.InvokeVoidAsync("tileMapCanvas.updateTilePositions", updates);
                     }
                     StateHasChanged();
