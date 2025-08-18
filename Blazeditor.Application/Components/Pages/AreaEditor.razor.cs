@@ -66,6 +66,12 @@ public partial class AreaEditor : IDisposable
         if (int.TryParse(e.Value?.ToString(), out int newPaletteId))
         {
             selectedPaletteId = newPaletteId;
+            // Reset selected tile when palette changes
+            SelectedTile = null;
+            if (!Area.TilePaletteIds.Contains(newPaletteId)) {
+                Area.TilePaletteIds.Add(newPaletteId);
+            }
+            TileMapCanvas?.UpdateTilePalette();
             StateHasChanged();
         }
     }
@@ -86,14 +92,6 @@ public partial class AreaEditor : IDisposable
             await JS.InvokeVoidAsync("tileMapCanvas.updateTileMaps", Area.TileMaps);
             StateHasChanged();
         }
-    }
-
-    private async Task OnPaletteImport(PaletteImportEventArgs paletteImportEventArgs)
-    {
-        var palette = Definition.ImportTileset(paletteImportEventArgs.FileName, null);
-        await TileMapCanvas.UpdateTilePalette();
-        await Definition.SaveAsync();
-        StateHasChanged();
     }
 
     public async Task DeleteSelectedTile()

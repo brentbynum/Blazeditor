@@ -33,7 +33,7 @@
                 <label for="paletteSelect" class="form-label">Tile Palette</label>
                 <select id="paletteSelect" class="form-select" @onchange="OnPaletteChanged" value="@selectedPaletteId">
                     <option value="">-- Select Palette --</option>
-                    @foreach (var palette in Definition.GetTilePalettes())
+                    @foreach (var palette in Definition.GetTilePalettes().Where(p => p.IsValid))
                     {
                         <option value="@palette.Id" selected="@(selectedPaletteId == palette.Id)">@palette.Name</option>
                     }

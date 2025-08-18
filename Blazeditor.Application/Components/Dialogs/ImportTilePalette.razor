@@ -73,10 +73,19 @@
             var doc = System.Text.Json.JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty("sheets", out var sheets) && sheets.GetArrayLength() > 0)
             {
-                var firstSheet = sheets[0].GetString();
-                if (!string.IsNullOrEmpty(firstSheet))
+                var firstSheetObj = sheets[0];
+                string? sheetName = null;
+                if (firstSheetObj.ValueKind == System.Text.Json.JsonValueKind.Object && firstSheetObj.TryGetProperty("sheetName", out var sheetNameProp))
                 {
-                    return $"tilesets/{firstSheet}";
+                    sheetName = sheetNameProp.GetString();
+                }
+                else if (firstSheetObj.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    sheetName = firstSheetObj.GetString();
+                }
+                if (!string.IsNullOrEmpty(sheetName))
+                {
+                    return $"tilesets/{sheetName}";
                 }
             }
         }

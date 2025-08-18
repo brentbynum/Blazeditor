@@ -1,5 +1,6 @@
 @page "/palette/{paletteId:int}"
 @using Blazeditor.Application.Models
+@using Microsoft.AspNetCore.Components
 @inject Blazeditor.Application.Services.DefinitionManager DefinitionManager
 @inject NavigationManager Navigation
 
@@ -12,6 +13,26 @@
     private int? selectedTileId = null;
     private Tile? SelectedTile => Palette?.Tiles.TryGetValue(selectedTileId ?? -1, out var t) == true ? t : null;
 
+    private bool editingName = false;
+    private bool editingDescription = false;
+    private string? editName;
+    private string? editDescription;
+
+    // Tile editing state
+    private bool editingTileName = false;
+    private bool editingTileDescription = false;
+    private string? editTileName;
+    private string? editTileDescription;
+    private TileRole? editTileRole = null;
+
+    private static readonly Dictionary<TileRole, Type> TileRoleEditorComponents = new()
+    {
+        { TileRole.Shim, typeof(Blazeditor.Application.Components.Dialogs.TileRoleEditors.ShimRoleEditor) },
+        { TileRole.Floor, typeof(Blazeditor.Application.Components.Dialogs.TileRoleEditors.FloorRoleEditor) },
+
+        // Add more role editors here as needed
+    };
+
     protected override void OnInitialized()
     {
         try
@@ -20,9 +41,10 @@
             if (Palette != null)
             {
                 cellSize = Palette.CellSize;
-                // Select the first tile by default
                 if (Palette.Tiles.Count > 0)
                     selectedTileId = Palette.Tiles.Keys.First();
+                editName = Palette.Name;
+                editDescription = Palette.Description;
             }
         }
         catch
@@ -31,9 +53,147 @@
         }
     }
 
+    private void StartEditName() { editingName = true; }
+    private void StartEditDescription() { editingDescription = true; }
+    private async Task SaveNameAsync()
+    {
+        if (Palette != null && !string.IsNullOrWhiteSpace(editName) && Palette.Name != editName)
+        {
+            Palette.Name = editName;
+            await DefinitionManager.SaveAsync();
+        }
+        editingName = false;
+    }
+    private async Task SaveDescriptionAsync()
+    {
+        if (Palette != null && editDescription != null && Palette.Description != editDescription)
+        {
+            Palette.Description = editDescription;
+            await DefinitionManager.SaveAsync();
+        }
+        editingDescription = false;
+    }
+    private async Task OnNameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SaveNameAsync();
+        }
+        else if (e.Key == "Escape")
+        {
+            editingName = false;
+            editName = Palette?.Name;
+        }
+    }
+    private async Task OnDescriptionKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SaveDescriptionAsync();
+        }
+        else if (e.Key == "Escape")
+        {
+            editingDescription = false;
+            editDescription = Palette?.Description;
+        }
+    }
+
+    // Tile name/description editing
+    private void StartEditTileName()
+    {
+        if (SelectedTile != null)
+        {
+            editingTileName = true;
+            editTileName = SelectedTile.Name;
+        }
+    }
+    private void StartEditTileDescription()
+    {
+        if (SelectedTile != null)
+        {
+            editingTileDescription = true;
+            editTileDescription = SelectedTile.Description;
+        }
+    }
+    private async Task SaveTileNameAsync()
+    {
+        if (SelectedTile != null && !string.IsNullOrWhiteSpace(editTileName) && SelectedTile.Name != editTileName)
+        {
+            SelectedTile.Name = editTileName;
+            await DefinitionManager.SaveAsync();
+        }
+        editingTileName = false;
+    }
+    private async Task SaveTileDescriptionAsync()
+    {
+        if (SelectedTile != null && editTileDescription != null && SelectedTile.Description != editTileDescription)
+        {
+            SelectedTile.Description = editTileDescription;
+            await DefinitionManager.SaveAsync();
+        }
+        editingTileDescription = false;
+    }
+    private async Task OnTileNameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SaveTileNameAsync();
+        }
+        else if (e.Key == "Escape")
+        {
+            editingTileName = false;
+            editTileName = SelectedTile?.Name;
+        }
+    }
+    private async Task OnTileDescriptionKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SaveTileDescriptionAsync();
+        }
+        else if (e.Key == "Escape")
+        {
+            editingTileDescription = false;
+            editTileDescription = SelectedTile?.Description;
+        }
+    }
+    private async Task OnTileRoleChanged(ChangeEventArgs e)
+    {
+        if (SelectedTile != null && Enum.TryParse<TileRole>(e.Value?.ToString(), out var newRole))
+        {
+            SelectedTile.Role = newRole;
+            await DefinitionManager.SaveAsync();
+            StateHasChanged();
+        }
+    }
     private void SelectTile(int tileId)
     {
         selectedTileId = tileId;
+        editingTileName = false;
+        editingTileDescription = false;
+    }
+
+    private bool UpdateTileRole(Tile tile)
+    {
+        if (tile.Role == TileRole.Shim)
+        {
+            if (!tile.HasProperty(nameof(ShimType)))
+            {
+                tile.Properties.Add(nameof(ShimType), ShimType.None);
+            }
+            else
+            {
+                tile.Properties[nameof(ShimType)] = ShimType.None;
+            }
+        }
+        else
+        {
+            if (tile.Properties.ContainsKey(nameof(ShimType)))
+            {
+                tile.Properties.Remove(nameof(ShimType));
+            }
+        }
+        return true;
     }
 }
 
@@ -47,13 +207,31 @@ else if (Palette == null)
 }
 else
 {
-    <div class="container mt-3">
-        <h2>Edit Tile Palette: @Palette.Name</h2>
-        <p>@Palette.Description</p>
+    <div class="container-fluid mt-3">
+        <div class="d-flex align-items-center mb-2">
+            @if (editingName)
+            {
+                <input class="form-control form-control-lg me-2" style="max-width:320px;" @bind="editName" @onblur="SaveNameAsync" @onkeydown="OnNameKeyDown" autofocus />
+            }
+            else
+            {
+                <h2 class="mb-0" style="cursor:pointer;" @onclick="StartEditName">@Palette.Name</h2>
+            }
+        </div>
+        <div class="mb-3">
+            @if (editingDescription)
+            {
+                <textarea class="form-control" style="max-width:600px; min-height:60px;" @bind="editDescription" @onblur="SaveDescriptionAsync" @onkeydown="OnDescriptionKeyDown" autofocus></textarea>
+            }
+            else
+            {
+                <p style="cursor:pointer;" class="text-muted" @onclick="StartEditDescription">@Palette.Description</p>
+            }
+        </div>
         <div class="row">
             <div class="col-4 border-end" style="min-width:180px;">
                 <div class="list-group" style="max-height: calc(100vh - 200px); overflow-y: auto;">
-                    @foreach (var tile in Palette.Tiles.Values)
+                    @foreach (var tile in Palette.Tiles.Values.OrderBy(t => t.Name))
                     {
                         <button class="list-group-item list-group-item-action d-flex align-items-center @(selectedTileId == tile.Id ? "active" : null)" @onclick="() => SelectTile(tile.Id)">
                             <img src="@tile.Image" style="width:64px; height:64px; object-fit:contain; margin-right:10px;" />
@@ -67,11 +245,38 @@ else
                 {
                     <div class="card">
                         <div class="card-body">
-                            <h5 class="card-title">@SelectedTile.Name</h5>
-                            <img src="@SelectedTile.Image" style="display:block; margin:auto; width:@(SelectedTile.Size.Width * cellSize)px; height:@(SelectedTile.Size.Height * cellSize)px;" />
+                            @if (editingTileName)
+                            {
+                                <input class="form-control form-control-lg mb-2" style="max-width:320px;" @bind="editTileName" @onblur="SaveTileNameAsync" @onkeydown="OnTileNameKeyDown" autofocus />
+                            }
+                            else
+                            {
+                                <h5 class="card-title" style="cursor:pointer;" @onclick="StartEditTileName">@SelectedTile.Name</h5>
+                            }
+                            <img src="@SelectedTile.Image" style="display:block; margin:auto; width:@(SelectedTile.Size.Width* cellSize)px; height:@(SelectedTile.Size.Height* cellSize)px;" />
                             <div class="mt-2">
                                 <strong>Size:</strong> @SelectedTile.Size.Width x @SelectedTile.Size.Height<br />
-                                <strong>Description:</strong> @SelectedTile.Description
+                                <div class="mt-2">
+                                    <label class="form-label">Role:</label>
+                                    <select class="form-select w-auto d-inline-block" value="@SelectedTile.Role" @onchange="OnTileRoleChanged">
+                                        @foreach (TileRole role in Enum.GetValues(typeof(TileRole)))
+                                        {
+                                            <option value="@role" selected="@(SelectedTile.Role == role)">@role</option>
+                                        }
+                                    </select>
+                                </div>
+                                @if (TileRoleEditorComponents.TryGetValue(SelectedTile.Role, out var editorType))
+                                {
+                                    <DynamicComponent Type="@editorType" Parameters="@(new Dictionary<string, object> { ["Tile"] = SelectedTile })" />
+                                }
+                                @if (editingTileDescription)
+                                {
+                                    <textarea class="form-control mt-2" style="max-width:600px; min-height:60px;" @bind="editTileDescription" @onblur="SaveTileDescriptionAsync" @onkeydown="OnTileDescriptionKeyDown" autofocus></textarea>
+                                }
+                                else
+                                {
+                                    <span style="cursor:pointer;" class="text-muted mt-2 d-block" @onclick="StartEditTileDescription">@SelectedTile.Description</span>
+                                }
                             </div>
                         </div>
                     </div>

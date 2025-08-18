@@ -23,6 +23,8 @@ public class DefinitionManager : IDisposable
         public int TileMapLevel { get; set; }
         public int X { get; set; }
         public int Y { get; set; }
+        public int OldElevation { get; set; }
+        public int NewElevation { get; set; }
         public Tile? OldTile { get; set; }
         public Tile? NewTile { get; set; }
     }
@@ -36,7 +38,7 @@ public class DefinitionManager : IDisposable
         LoadDefinitionAsync().GetAwaiter().GetResult();
     }
 
-    public void ExecuteTileEdit(int areaId, int level, int x, int y, Tile? newTile)
+    public void ExecuteTileEdit(int areaId, int level, int x, int y, Tile? newTile, int elevation = 0)
     {
         if (!_definition.Areas.TryGetValue(areaId, out var area)) return;
         if (!area.TileMaps.TryGetValue(level, out var map)) return;
@@ -48,12 +50,14 @@ public class DefinitionManager : IDisposable
             TileMapLevel = level,
             X = x,
             Y = y,
+            NewElevation = elevation,
+            OldElevation = oldPlacement?.Elevation ?? 0,
             OldTile = oldTile,
             NewTile = newTile
         };
         _tileUndoStack.Push(undo);
         _tileRedoStack.Clear();
-        map.SetPlacement(x, y, newTile?.Id, newTile?.SourcePaletteId);
+        map.SetPlacement(x, y, newTile?.Id, newTile?.SourcePaletteId, elevation);
         MarkDirty();
         OnChanged?.Invoke(_definition);
     }
@@ -64,7 +68,7 @@ public class DefinitionManager : IDisposable
         var edit = _tileUndoStack.Pop();
         if (!_definition.Areas.TryGetValue(edit.AreaId, out var area)) return;
         if (!area.TileMaps.TryGetValue(edit.TileMapLevel, out var map)) return;
-        map.SetPlacement(edit.X, edit.Y, edit.OldTile?.Id, edit.OldTile?.SourcePaletteId);
+        map.SetPlacement(edit.X, edit.Y, edit.OldTile?.Id, edit.OldTile?.SourcePaletteId, edit.OldElevation);
         _tileRedoStack.Push(edit);
         MarkDirty();
         OnChanged?.Invoke(_definition);
@@ -76,7 +80,7 @@ public class DefinitionManager : IDisposable
         var edit = _tileRedoStack.Pop();
         if (!_definition.Areas.TryGetValue(edit.AreaId, out var area)) return;
         if (!area.TileMaps.TryGetValue(edit.TileMapLevel, out var map)) return;
-        map.SetPlacement(edit.X, edit.Y, edit.NewTile?.Id, edit.NewTile?.SourcePaletteId);
+        map.SetPlacement(edit.X, edit.Y, edit.NewTile?.Id, edit.NewTile?.SourcePaletteId, edit.NewElevation);
         _tileUndoStack.Push(edit);
         MarkDirty();
         OnChanged?.Invoke(_definition);
@@ -183,26 +187,32 @@ public class DefinitionManager : IDisposable
 
     public Dictionary<int, Tile> ExtractTilesFromJsonTilesheet(string jsonFilename, int paletteId)
     {
-        if (string.IsNullOrWhiteSpace(jsonFilename)) throw new ArgumentException("Filename cannot be null or empty.", nameof(jsonFilename));
         var jsonPath = Path.Combine("wwwroot", "tilesets", jsonFilename);
         if (!File.Exists(jsonPath)) throw new FileNotFoundException($"JSON file not found: {jsonPath}");
         var json = File.ReadAllText(jsonPath);
         var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
-        var tiles = root.GetProperty("tiles");
-        var cellSizeVal = root.GetProperty("cellSize").GetInt32();
-        var cellSize = new Size { Width = cellSizeVal, Height = cellSizeVal };
-        var sheets = root.GetProperty("sheets").EnumerateArray().Select(s => s.GetString()).ToList() ?? [];
-        var result = new Dictionary<int, Tile>();
-        // Load all sheet images
-        var sheetImages = new List<Image<Rgba32>>();
-        foreach (var sheet in sheets)
+
+        // Parse sheets array as objects
+        var sheets = new List<(string sheetName, int cellSize, int id)>();
+        var sheetImages = new Dictionary<int, Image<Rgba32>>();
+        if (root.TryGetProperty("sheets", out var sheetsElem))
         {
-            var imagePath = Path.Combine("wwwroot", "tilesets", sheet!);
-            if (!File.Exists(imagePath)) throw new FileNotFoundException($"Image file not found: {imagePath}");
-            sheetImages.Add(Image.Load<Rgba32>(imagePath));
+            foreach (var sheetObj in sheetsElem.EnumerateArray())
+            {
+                var sheetName = sheetObj.GetProperty("sheetName").GetString() ?? "";
+                var cellSize = sheetObj.GetProperty("cellSize").GetInt32();
+                var id = sheetObj.GetProperty("id").GetInt32();
+                sheets.Add((sheetName, cellSize, id));
+                var imagePath = Path.Combine("wwwroot", "tilesets", sheetName);
+                if (!File.Exists(imagePath)) throw new FileNotFoundException($"Image file not found: {imagePath}");
+                sheetImages[id] = Image.Load<Rgba32>(imagePath);
+            }
         }
-        foreach (var tileElem in tiles.EnumerateArray())
+
+        var result = new Dictionary<int, Tile>();
+        var tilesElem = root.GetProperty("tiles");
+        foreach (var tileElem in tilesElem.EnumerateArray())
         {
             string name = tileElem.GetProperty("name").GetString() ?? "tile";
             string description = tileElem.GetProperty("description").GetString() ?? string.Empty;
@@ -210,14 +220,18 @@ public class DefinitionManager : IDisposable
             int h = tileElem.GetProperty("h").GetInt32();
             int x = tileElem.GetProperty("x").GetInt32();
             int y = tileElem.GetProperty("y").GetInt32();
-            int sheetIdx = tileElem.TryGetProperty("sheet", out var sheetProp) ? sheetProp.GetInt32() : 0;
-            if (sheetIdx < 0 || sheetIdx >= sheetImages.Count) continue;
+            int sheetIdx = tileElem.GetProperty("sheet").GetInt32();
+
+            // Find the sheet info
+            var sheetInfo = sheets.First(s => s.id == sheetIdx);
             var image = sheetImages[sheetIdx];
+            var cellSize = sheetInfo.cellSize;
+
             var rect = new Rectangle(
-                x * cellSize.Width,
-                y * cellSize.Height,
-                w * cellSize.Width,
-                h * cellSize.Height
+                x * cellSize,
+                y * cellSize,
+                w * cellSize,
+                h * cellSize
             );
             using (var tileImg = image.Clone(ctx => ctx.Crop(rect)))
             using (var ms = new MemoryStream())
@@ -225,11 +239,11 @@ public class DefinitionManager : IDisposable
                 tileImg.Save(ms, new PngEncoder());
                 var base64 = Convert.ToBase64String(ms.ToArray());
                 var base64Url = $"data:image/png;base64,{base64}";
-                var tile = new Tile(name, description, sheets[sheetIdx] ?? "sheet", base64Url, new Size(w, h), paletteId);
+                var tile = new Tile(name, description, sheetInfo.sheetName, base64Url, new Size(w, h), paletteId);
                 result.Add(tile.Id, tile);
             }
         }
-        foreach (var img in sheetImages) img.Dispose();
+        foreach (var img in sheetImages.Values) img.Dispose();
         return result;
     }
 

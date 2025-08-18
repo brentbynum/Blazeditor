@@ -8,6 +8,8 @@ namespace Blazeditor.Application.Components.Dialogs;
 
 public partial class TileMapCanvas : IDisposable
 {
+    private const int MaxTileElevation = 6; // Maximum elevation for tiles
+    private const int MinTileElevation = 0;
     [Parameter] public required Area Area { get; set; } = new();
     [Parameter] public Tile? SelectedTile { get; set; }
 
@@ -47,7 +49,7 @@ public partial class TileMapCanvas : IDisposable
             }
             if (_shouldInitJs)
             {
-                await JS.InvokeVoidAsync("tileMapCanvas.setSelectedTileId", SelectedTile?.Id);                
+                await JS.InvokeVoidAsync("tileMapCanvas.setSelectedTileId", SelectedTile?.Id);
                 await JS.InvokeVoidAsync("tileMapCanvas.setActiveLayer", ActiveLayer);
                 _shouldInitJs = false;
             }
@@ -69,7 +71,7 @@ public partial class TileMapCanvas : IDisposable
                     {
                         if (cell.X >= 0 && cell.X < width && cell.Y >= 0 && cell.Y < height)
                         {
-                            map.SetPlacement(cell.X, cell.Y, null, null);
+                            map.SetPlacement(cell.X, cell.Y, null, null, null);
                         }
                     }
                 }
@@ -82,7 +84,7 @@ public partial class TileMapCanvas : IDisposable
                     {
                         for (int x = 0; x < width; x++)
                         {
-                            tileMap.SetPlacement(x, y, null, null);
+                            tileMap.SetPlacement(x, y, null, null, null);
                         }
                     }
                 }
@@ -106,7 +108,7 @@ public partial class TileMapCanvas : IDisposable
     {
         if (Area.TilePaletteIds.Count() > 0)
         {
-            var paletteTiles = Area.TilePaletteIds.Select(id => Definition.GetPalette(id)).SelectMany(p => p.Tiles);
+            var paletteTiles = Area.TilePaletteIds.SelectMany(id => Definition.GetPalette(id).Tiles).ToDictionary();
             await JS.InvokeVoidAsync("tileMapCanvas.updateTilePalette", paletteTiles);
             StateHasChanged();
         }
@@ -139,18 +141,63 @@ public partial class TileMapCanvas : IDisposable
                 {
                     if (JS != null)
                     {
-                        var updates = new[] { new { x, y, layer, tileId = SelectedTile.Id, paletteId = palette.Id } };
+                        var updates = new[] { new { x, y, layer, tileId = SelectedTile.Id, paletteId = palette.Id, elevation = 0 } };
                         JS.InvokeVoidAsync("tileMapCanvas.updateTilePositions", updates);
                     }
                     StateHasChanged();
                 });
-                Definition.ExecuteTileEdit(areaId, layer, x, y, tile);
+                Definition.ExecuteTileEdit(areaId, layer, x, y, tile, 0);
             }
         }
 
     }
+    [JSInvokable]
+    public void OnJsRaiseTile(int x, int y, int layer)
+    {
+        if (Area != null && Area.TileMaps != null && Area.TileMaps.TryGetValue(layer, out var map))
+        {
+            var placement = map.GetPlacement(x, y);
+            if (placement != null)
+            {
+                if (placement.Elevation >= MaxTileElevation)
+                    return; // Don't raise beyond max elevation
+                placement.Elevation += 1; // Raise the tile by increasing its elevation
 
-
+                InvokeAsync(() =>
+                {
+                    if (JS != null)
+                    {
+                        var updates = new[] { new { x, y, layer, tileId = placement.TileId, elevation = placement.Elevation } };
+                        JS.InvokeVoidAsync("tileMapCanvas.updateTilePositions", updates);
+                    }
+                    StateHasChanged();
+                });
+            }
+        }
+    }
+    [JSInvokable]
+    public void OnJsLowerTile(int x, int y, int layer)
+    {
+        if (Area != null && Area.TileMaps != null && Area.TileMaps.TryGetValue(layer, out var map))
+        {
+            var placement = map.GetPlacement(x, y);
+            if (placement != null)
+            {
+                if (placement.Elevation <= MinTileElevation)
+                    return; // Don't lower below min elevation
+                placement.Elevation -= 1; // Raise the tile by increasing its elevation
+                InvokeAsync(() =>
+                {
+                    if (JS != null)
+                    {
+                        var updates = new[] { new { x, y, layer, elevation = placement.Elevation } };
+                        JS.InvokeVoidAsync("tileMapCanvas.updateTilePositions", updates);
+                    }
+                    StateHasChanged();
+                });
+            }
+        }
+    }
     [JSInvokable]
     public void OnJsFill(int x, int y, int layer, bool ctrlKey)
     {
@@ -225,8 +272,8 @@ public partial class TileMapCanvas : IDisposable
                         continue;
 
                     // Place the tile
-                    map.SetPlacement(fx, fy, SelectedTile.Id, SelectedTile.SourcePaletteId);
-                    updates.Add(new { x = fx, y = fy, layer, tileId=SelectedTile.Id, paletteId = palette.Id });
+                    map.SetPlacement(fx, fy, SelectedTile.Id, SelectedTile.SourcePaletteId, 0);
+                    updates.Add(new { x = fx, y = fy, layer, tileId = SelectedTile.Id, paletteId = palette.Id });
                 }
             }
         }
@@ -245,7 +292,7 @@ public partial class TileMapCanvas : IDisposable
     {
         if (Area != null && Area.TileMaps != null && Area.TileMaps.TryGetValue(layer, out var map))
         {
-            map.SetPlacement(x, y, null, null);
+            map.SetPlacement(x, y, null, null, null);
             InvokeAsync(() =>
             {
                 if (JS != null)

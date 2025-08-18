@@ -1,0 +1,33 @@
+﻿@page "/editor"
+
+@using Blazeditor.Application.Models
+@inject Blazeditor.Application.Services.DefinitionManager DefinitionManager
+<div class="mb-2">
+    <label class="form-label">Shim Type:</label>
+    <select class="form-select w-auto d-inline-block" @onchange="OnShimTypeChanged" value="@CurrentShimType">
+        @foreach (ShimType shim in Enum.GetValues(typeof(ShimType)))
+        {
+            <option value="@shim" selected="@(shim == CurrentShimType)">@shim</option>
+        }
+    </select>
+</div>
+
+@code {
+    [Parameter] public required Tile Tile { get; set; }
+
+    private ShimType CurrentShimType
+    {
+        get => Tile.GetProperty<ShimType>(nameof(ShimType));
+        set => Tile.Properties[nameof(ShimType)] = value;
+    }
+
+    private async Task OnShimTypeChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<ShimType>(e.Value?.ToString(), out var newType))
+        {
+            CurrentShimType = newType;
+            await DefinitionManager.SaveAsync();
+            StateHasChanged();
+        }
+    }
+}

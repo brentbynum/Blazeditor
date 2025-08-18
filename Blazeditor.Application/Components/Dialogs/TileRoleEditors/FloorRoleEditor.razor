@@ -1,0 +1,25 @@
+﻿@inject Blazeditor.Application.Services.DefinitionManager DefinitionManager
+
+<div class="mb-2">
+    <label class="form-label">Impedence:</label>
+    <input class="form-control w-auto d-inline-block" type="number" @onchange="OnImpedenceChanged" />
+</div>
+
+@code {
+    [Parameter] public required Tile Tile { get; set; }
+    private float Impedence
+    {
+        get => Tile.GetProperty<int>(nameof(Impedence));
+        set => Tile.Properties[nameof(Impedence)] = value;
+    }
+
+    private async Task OnImpedenceChanged(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), out var newValue))
+        {
+            Impedence = newValue;
+            await DefinitionManager.SaveAsync();
+            StateHasChanged();
+        }
+    }
+}

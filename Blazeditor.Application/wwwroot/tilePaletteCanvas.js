@@ -109,6 +109,8 @@
             let bin = new MaxRectsBin(paletteCanvas.width, paletteCanvas.height);
             for (let i = 0; i < paletteTiles.length; i++) {
                 const tile = paletteTiles[i];
+                if (tile.role === window.blazeditor.tileRole.shim) { continue; } // Skip shims in palette
+
                 let w = tile.size.width * cellSize;
                 let h = tile.size.height * cellSize;
                 let pos = bin.insert(w, h);
@@ -116,6 +118,7 @@
                 // Store layout for hit testing
                 if (!tile.paletteState) tile.paletteState = {};
                 tile.paletteState.layout = { x: pos.x, y: pos.y, width: w, height: h };
+
                 // Draw tile image if present
                 if (tile.image && tile.image.startsWith('data:image')) {
                     paletteContext.drawImage(tile.paletteState.image, pos.x, pos.y, w, h);
