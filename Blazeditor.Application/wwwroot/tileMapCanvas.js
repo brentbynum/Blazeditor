@@ -131,10 +131,9 @@
         const maskCtx = maskCanvas.getContext('2d');
         // Fill mask with opaque white (full alpha)
         maskCtx.fillStyle = 'white';
-        maskCtx.fillRect(0, 0, width, height);
+        maskCtx.fillRect(32, 0, width, height);
         // Draw cap mask at the left edge (0,0)
         maskCtx.drawImage(capMaskImg, 0, 0, capMaskImg.width, capMaskImg.height);
-
         // Apply mask to shim image
         ctx.globalCompositeOperation = 'destination-in';
         ctx.drawImage(maskCanvas, 0, 0, width, height);
@@ -550,8 +549,16 @@
                     if (tile && tile.image && tile.image.startsWith('data:image') && tile.layout.isLoaded) {
                         const offset = placement.elevation * -32; // Elevation offset, assuming 32px per elevation step
                         // Draw at 32x32 grid
-                        ctx.drawImage(tile.layout.image, x * window.tileMapState.cellSize + offset, y * window.tileMapState.cellSize + offset, tile.size.width * 64, tile.size.height * 64); // TODO: The cell size should be read from the palette instead of hard-coded to 64
+                        ctx.filter = 'contrast(0.8) brightness(0.8)';
+                        if (offset != 0) {
+                            const el = -(offset / 32);
+                            const bright = Math.max(0.2, 0.8 + (el * 0.05)); // Increase brightness based on elevation
+                            const contrast = Math.max(0.2, 0.8 + (el * 0.1)); // Increase contrast based on elevation
+                            ctx.filter = `brightness(${bright}) contrast(${contrast})`; // Dim the tile if it has elevation
+                        }
 
+                        ctx.drawImage(tile.layout.image, x * window.tileMapState.cellSize + offset, y * window.tileMapState.cellSize + offset, tile.size.width * 64, tile.size.height * 64); // TODO: The cell size should be read from the palette instead of hard-coded to 64
+                        ctx.filter = 'none'; // Reset filter for next tiles
                         if (offset != 0) {
 
                             const isCappedLeft = (placement.layout.nextFloorLeft ? placement.elevation - placement.layout.nextFloorLeft.elevation : 0) > 0;
@@ -571,40 +578,39 @@
                             }
                         }
                     }
-
                 }
-                // Draw grid and hovered cell
-                for (let y = 0; y < window.tileMapState.mapSize.height; y++) {
-                    for (let x = 0; x < window.tileMapState.mapSize.width; x++) {
-                        // Draw a border around the whole grid (once, not per cell)
-                        if (x === 0 && y === 0) {
+            }
+
+            for (let y = 0; y < window.tileMapState.mapSize.height; y++) {
+                for (let x = 0; x < window.tileMapState.mapSize.width; x++) {
+                    // Draw a border around the whole grid (once, not per cell)
+                    if (x === 0 && y === 0) {
+                        ctx.save();
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(0, 0, window.tileMapState.mapSize.width * window.tileMapState.cellSize, window.tileMapState.mapSize.height * window.tileMapState.cellSize);
+                        ctx.restore();
+                    }
+                    if (showGrid) {
+                        // Draw grid
+                        ctx.strokeStyle = '#88888888';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(x * window.tileMapState.cellSize, y * window.tileMapState.cellSize, window.tileMapState.cellSize, window.tileMapState.cellSize);
+                        // Highlight hovered cell
+                        if (window.tileMapState.isMouseOver && x === hoveredCell.x && y === hoveredCell.y) {
                             ctx.save();
-                            ctx.strokeStyle = '#000';
-                            ctx.lineWidth = 3;
-                            ctx.strokeRect(0, 0, window.tileMapState.mapSize.width * window.tileMapState.cellSize, window.tileMapState.mapSize.height * window.tileMapState.cellSize);
+                            ctx.strokeStyle = '#ff0';
+                            ctx.strokeRect(x * window.tileMapState.cellSize, y * window.tileMapState.cellSize, window.tileMapState.cellSize, window.tileMapState.cellSize);
                             ctx.restore();
                         }
-                        if (showGrid) {
-                            // Draw grid
-                            ctx.strokeStyle = '#ccc';
-                            ctx.strokeRect(x * window.tileMapState.cellSize, y * window.tileMapState.cellSize, window.tileMapState.cellSize, window.tileMapState.cellSize);
-                            // Highlight hovered cell
-                            if (window.tileMapState.isMouseOver && x === hoveredCell.x && y === hoveredCell.y) {
-                                ctx.save();
-                                ctx.strokeStyle = '#ff0';
-                                ctx.lineWidth = 3;
-                                ctx.strokeRect(x * window.tileMapState.cellSize, y * window.tileMapState.cellSize, window.tileMapState.cellSize, window.tileMapState.cellSize);
-                                ctx.restore();
-                            }
-                        }
-                        // Draw tile overlay for the hovered cell
-                        if (selectedTool.drawOverlay && x === hoveredCell.x && y === hoveredCell.y) {
-                            selectedTool.drawOverlay(ctx, x, y, hoveredCell.layer);
-                        }
+                    }
+                    // Draw tile overlay for the hovered cell
+                    if (selectedTool.drawOverlay && x === hoveredCell.x && y === hoveredCell.y) {
+                        selectedTool.drawOverlay(ctx, x, y, hoveredCell.layer);
                     }
                 }
-                ctx.restore();
             }
+            ctx.restore();
         },
         startRenderLoop: function () {
             running = true;

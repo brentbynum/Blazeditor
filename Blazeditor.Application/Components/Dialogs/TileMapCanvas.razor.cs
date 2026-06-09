@@ -39,9 +39,9 @@ public partial class TileMapCanvas : IDisposable
                 await JS.InvokeVoidAsync("tileMapCanvas.setDotNetRef", dotNetRef);
             }
             if (_shouldInitMap)
-
             {
-                var paletteTiles = Area.TilePaletteIds.SelectMany(id => Definition.GetPalette(id).Tiles).ToDictionary();
+                // TODO: Where should I get the palette tiles from?
+                var paletteTiles = Definition.GetTilePalettes().SelectMany(p => p.Tiles).ToDictionary();
                 // The map only ever gets init-ed once, and the tilemaps get synched manually on add/remove
                 await JS.InvokeVoidAsync("tileMapCanvas.init", canvasRef, Area.TileMaps, Area.CellSize, Area.Size, paletteTiles);
                 _shouldInitMap = false; // Reset flag after initialization

@@ -1,6 +1,10 @@
 @page "/palette/{paletteId:int}"
+@using Blazeditor.Application.Components.Dialogs
 @using Blazeditor.Application.Models
 @using Microsoft.AspNetCore.Components
+@using SixLabors.ImageSharp
+@using SixLabors.ImageSharp.Formats.Png
+@using SixLabors.ImageSharp.PixelFormats
 @inject Blazeditor.Application.Services.DefinitionManager DefinitionManager
 @inject NavigationManager Navigation
 
@@ -18,13 +22,15 @@
     private string? editName;
     private string? editDescription;
 
+    private bool showReplaceTileImageDialog = false;
+
     // Tile editing state
     private bool editingTileName = false;
     private bool editingTileDescription = false;
     private string? editTileName;
     private string? editTileDescription;
     private TileRole? editTileRole = null;
-
+    private TileImageSelector? imageSelector;
     private static readonly Dictionary<TileRole, Type> TileRoleEditorComponents = new()
     {
         { TileRole.Shim, typeof(Blazeditor.Application.Components.Dialogs.TileRoleEditors.ShimRoleEditor) },
@@ -195,7 +201,35 @@
         }
         return true;
     }
+
+    private void OpenReplaceTileImageDialog()
+    {
+        imageSelector?.Show();
+    }
+
+    private async Task OnTileImageReplaced(string imagePath)
+    {
+        // TODO: Validate and replace tile image here        
+        var image = Image.Load<Rgba32>(imagePath);
+        if (image.Width != SelectedTile!.Size.Width * cellSize || image.Height != SelectedTile!.Size.Height * cellSize)
+        {
+            // TODO: Tell the user the new tile image is the wrong size to replace the tile
+        }
+        else
+        {
+            using (var ms = new MemoryStream())
+            {
+                image.Save(ms, new PngEncoder());
+                var base64 = Convert.ToBase64String(ms.ToArray());
+                var base64Url = $"data:image/png;base64,{base64}";
+                SelectedTile.Image = base64Url;
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
 }
+
+    <TileImageSelector @ref="imageSelector" OnTileImageSelected="OnTileImageReplaced" />
 
 @if (notFound)
 {
@@ -253,7 +287,11 @@ else
                             {
                                 <h5 class="card-title" style="cursor:pointer;" @onclick="StartEditTileName">@SelectedTile.Name</h5>
                             }
-                            <img src="@SelectedTile.Image" style="display:block; margin:auto; width:@(SelectedTile.Size.Width* cellSize)px; height:@(SelectedTile.Size.Height* cellSize)px;" />
+                            <div class="tile-image-display">
+                                <img src="@SelectedTile.Image" style="display:block; margin:auto; width:@(SelectedTile.Size.Width* cellSize)px; height:@(SelectedTile.Size.Height* cellSize)px;" />
+                                <button class="btn btn-outline-primary mt-2" @onclick="OpenReplaceTileImageDialog">Replace Tile Image</button>
+
+                            </div>
                             <div class="mt-2">
                                 <strong>Size:</strong> @SelectedTile.Size.Width x @SelectedTile.Size.Height<br />
                                 <div class="mt-2">
@@ -265,6 +303,7 @@ else
                                         }
                                     </select>
                                 </div>
+
                                 @if (TileRoleEditorComponents.TryGetValue(SelectedTile.Role, out var editorType))
                                 {
                                     <DynamicComponent Type="@editorType" Parameters="@(new Dictionary<string, object> { ["Tile"] = SelectedTile })" />

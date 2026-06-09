@@ -1,0 +1,6 @@
+﻿.tile-image-display {
+    display: flex;
+}
+.tile-image-display button {
+    align-self: start;
+}
