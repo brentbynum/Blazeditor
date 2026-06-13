@@ -1,4 +1,4 @@
-@page "/palette/{paletteId:int}"
+@page "/palette/{paletteId:guid}"
 @using Blazeditor.Application.Components.Dialogs
 @using Blazeditor.Application.Models
 @using Microsoft.AspNetCore.Components
@@ -10,12 +10,12 @@
 
 @code {
     [Parameter]
-    public int paletteId { get; set; }
+    public Guid paletteId { get; set; }
     private TilePalette? Palette;
     private bool notFound = false;
     private int cellSize = 64; // Default fallback
-    private int? selectedTileId = null;
-    private Tile? SelectedTile => Palette?.Tiles.TryGetValue(selectedTileId ?? -1, out var t) == true ? t : null;
+    private Guid? selectedTileId = null;
+    private Tile? SelectedTile => selectedTileId.HasValue && Palette != null && Palette.Tiles.TryGetValue(selectedTileId.Value, out var t) ? t : null;
 
     private bool editingName = false;
     private bool editingDescription = false;
@@ -172,7 +172,7 @@
             StateHasChanged();
         }
     }
-    private void SelectTile(int tileId)
+    private void SelectTile(Guid tileId)
     {
         selectedTileId = tileId;
         editingTileName = false;
@@ -181,24 +181,8 @@
 
     private bool UpdateTileRole(Tile tile)
     {
-        if (tile.Role == TileRole.Shim)
-        {
-            if (!tile.HasProperty(nameof(ShimType)))
-            {
-                tile.Properties.Add(nameof(ShimType), ShimType.None);
-            }
-            else
-            {
-                tile.Properties[nameof(ShimType)] = ShimType.None;
-            }
-        }
-        else
-        {
-            if (tile.Properties.ContainsKey(nameof(ShimType)))
-            {
-                tile.Properties.Remove(nameof(ShimType));
-            }
-        }
+        tile.FloorProperties = tile.Role == TileRole.Floor ? new() : null;
+        tile.ShimProperties = tile.Role == TileRole.Shim ? new() : null;
         return true;
     }
 

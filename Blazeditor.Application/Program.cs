@@ -1,9 +1,11 @@
 using Blazeditor.Application.Components;
+using Blazeditor.Application.Data;
 using Blazeditor.Application.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,8 +14,12 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddScoped<SimpleAuthService>();
+builder.Services.AddScoped<DefinitionSerializerService>();
 builder.Services.AddScoped<DefinitionManager>();
 builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddDbContext<BlazeditorDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Blazeditor")));
 
 // Add authentication/authorization
 builder.Services.AddAuthentication("Cookies")
@@ -46,12 +52,12 @@ app.MapPost("/login", async (HttpContext context, [FromForm] string username, [F
     else
     {
         // Redirect back to login with error
-        context.Response.Redirect("/login?error=1");
+        context.Response.Redirect("/login?error=true");
     }
 });
 app.UseHttpsRedirection();
 
-app.UseStaticFiles();
+app.MapStaticAssets();
 app.UseAntiforgery();
 
 // Add authentication/authorization middleware

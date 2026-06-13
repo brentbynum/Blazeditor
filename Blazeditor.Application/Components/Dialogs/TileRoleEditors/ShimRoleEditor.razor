@@ -17,8 +17,8 @@
 
     private ShimType CurrentShimType
     {
-        get => Tile.GetProperty<ShimType>(nameof(ShimType));
-        set => Tile.Properties[nameof(ShimType)] = value;
+        get => Tile.ShimProperties?.ShimType ?? ShimType.None;
+        set => (Tile.ShimProperties ??= new()).ShimType = value;
     }
 
     private async Task OnShimTypeChanged(ChangeEventArgs e)

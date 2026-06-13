@@ -5,6 +5,7 @@
 @using Blazeditor.Application.Components.Dialogs
 @using SixLabors.ImageSharp
 @inject DefinitionManager Definition
+@inject IWebHostEnvironment Env
 
 <style>
     .import-tilepalette-blur {
@@ -28,7 +29,7 @@
     protected override void OnInitialized()
     {
         // List all JSON files in wwwroot/tilesets
-        var tilesetDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "tilesets");
+        var tilesetDir = Path.Combine(Env.WebRootPath, "tilesets");
         if (Directory.Exists(tilesetDir))
         {
             Filenames = Directory.GetFiles(tilesetDir)
@@ -66,7 +67,7 @@
 
     private string? GetFirstSheetImage(string jsonFilename)
     {
-        var jsonPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "tilesets", jsonFilename);
+        var jsonPath = Path.Combine(Env.WebRootPath, "tilesets", jsonFilename);
         if (File.Exists(jsonPath))
         {
             var json = File.ReadAllText(jsonPath);
@@ -94,7 +95,7 @@
 
     private (int, int) GetCellSizeFromJson(string filename)
     {
-        var jsonPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "tilesets", filename);
+        var jsonPath = Path.Combine(Env.WebRootPath, "tilesets", filename);
         if (File.Exists(jsonPath))
         {
             var json = File.ReadAllText(jsonPath);

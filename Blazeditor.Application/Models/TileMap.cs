@@ -1,5 +1,3 @@
-using LiteDB;
-
 namespace Blazeditor.Application.Models;
 
 public class TilePlacement
@@ -8,8 +6,8 @@ public class TilePlacement
     public int Y { get; set; }
 
     public int Elevation { get; set; } = 0; // Elevation property for vertical offset
-    public int? TileId { get; set; } // null means empty cell
-    public int? PaletteId { get; set; } // null means no specific palette, shouldn't happen in a tile map placement because you need a palette to make a plcament
+    public Guid? TileId { get; set; } // null means empty cell
+    public Guid? PaletteId { get; set; } // null means no specific palette, shouldn't happen in a tile map placement because you need a palette to make a placement
 }
 
 public class TileMap : BaseEntity
@@ -47,7 +45,7 @@ public class TileMap : BaseEntity
             }
         }
         TilePlacements = newArray;
-        
+
     }
 
     // Get tile placement at (x, y) in 32x32 grid units
@@ -59,7 +57,7 @@ public class TileMap : BaseEntity
     }
 
     // Set or update tile placement at (x, y) in 32x32 grid units
-    public void SetPlacement(int x, int y, int? tileId, int? paletteId, int? elevation)
+    public void SetPlacement(int x, int y, Guid? tileId, Guid? paletteId, int? elevation)
     {
         int idx = GetKey(x, y);
         if (idx < 0 || idx >= TilePlacements.Length) return;

@@ -11,8 +11,8 @@ public partial class TilePaletteCanvas : IDisposable
     [Inject] public DefinitionManager Definition { get; set; } = default!;
     private ElementReference canvasRef;
     [Parameter] public required Area Area { get; set; }
-    [Parameter] public int? SelectedPaletteId { get; set; }
-    [Parameter] public EventCallback<int> OnTileSelected { get; set; }
+    [Parameter] public Guid? SelectedPaletteId { get; set; }
+    [Parameter] public EventCallback<Guid> OnTileSelected { get; set; }
 
     private DotNetObjectReference<TilePaletteCanvas>? dotNetRef;
 
@@ -49,7 +49,7 @@ public partial class TilePaletteCanvas : IDisposable
     }
 
     [JSInvokable]
-    public async Task OnJsTileSelected(int tileId)
+    public async Task OnJsTileSelected(Guid tileId)
     {
         if (OnTileSelected.HasDelegate)
         {

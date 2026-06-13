@@ -367,3 +367,5 @@ FodyWeavers.xsd
 
 *Media/*
 **/wwwroot/tilesets/*
+
+*Data/Migrations/*

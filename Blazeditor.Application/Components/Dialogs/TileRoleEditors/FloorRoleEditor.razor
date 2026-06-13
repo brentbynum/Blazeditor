@@ -7,17 +7,17 @@
 
 @code {
     [Parameter] public required Tile Tile { get; set; }
-    private float Impedence
+    private float Impedance
     {
-        get => Tile.GetProperty<int>(nameof(Impedence));
-        set => Tile.Properties[nameof(Impedence)] = value;
+        get => Tile.FloorProperties?.Impedance ?? 0;
+        set => (Tile.FloorProperties ??= new()).Impedance = value;
     }
 
     private async Task OnImpedenceChanged(ChangeEventArgs e)
     {
         if (float.TryParse(e.Value?.ToString(), out var newValue))
         {
-            Impedence = newValue;
+            Impedance = newValue;
             await DefinitionManager.SaveAsync();
             StateHasChanged();
         }

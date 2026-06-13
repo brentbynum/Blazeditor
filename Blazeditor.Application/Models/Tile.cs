@@ -1,5 +1,3 @@
-using LiteDB;
-
 namespace Blazeditor.Application.Models;
 
 public enum TileRole
@@ -20,7 +18,7 @@ public enum ShimType
 public class Tile : BaseEntity
 {
     public Tile() : base() { }
-    public Tile(string name, string description, string type, string imageBase64, Size size, int sourcePaletteId) : base(name, description)
+    public Tile(string name, string description, string type, string imageBase64, Size size, Guid sourcePaletteId) : base(name, description)
     {
         Type = type;
         Image = imageBase64;
@@ -32,26 +30,25 @@ public class Tile : BaseEntity
     public string Image { get; set; } = string.Empty;
     public Size Size { get; set; } = new Size(1, 1);
 
-    public int SourcePaletteId { get; set; } = 0; // ID of the source palette this tile belongs to
+    public Guid SourcePaletteId { get; set; } = Guid.Empty; // ID of the source palette this tile belongs to
 
-    public Dictionary<string, object> Properties { get; set; } = new();
+    // Meaningful only when Role == TileRole.Floor; null otherwise
+    public FloorProperties? FloorProperties { get; set; }
 
-    public bool HasProperty(string name)
-    {
-        return Properties.ContainsKey(name);
-    }
+    // Meaningful only when Role == TileRole.Shim; null otherwise
+    public ShimProperties? ShimProperties { get; set; }
 
-    public T? GetProperty<T>(string key)
-    {
-        if (Properties.TryGetValue(key, out var value) && value is T typedValue)
-        {
-            return typedValue;
-        }
-        return default;
-    }
-
-    [BsonIgnore]
     public TileState PaletteState { get; set; }
+}
+
+public class FloorProperties
+{
+    public float Impedance { get; set; }
+}
+
+public class ShimProperties
+{
+    public ShimType ShimType { get; set; } = ShimType.None;
 }
 
 public struct TileState

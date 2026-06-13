@@ -209,7 +209,7 @@
             roles.shimCapMasks.length > 0 &&
             roles.floors[0].layout.image.complete &&
             roles.shimRuns[0].layout.image.complete &&
-            roles.shimOverhangMasks[0].layout.image.complete,
+            roles.shimOverhangMasks[0].layout.image.complete &&
             roles.shimCapMasks[0].layout.image.complete
         ) {
             const baseImg = roles.floors[0].layout.image;

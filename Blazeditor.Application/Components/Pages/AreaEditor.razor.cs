@@ -9,13 +9,13 @@ namespace Blazeditor.Application.Components.Pages;
 public partial class AreaEditor : IDisposable
 {
     [Parameter]
-    public int AreaId { get; set; }
+    public Guid AreaId { get; set; }
     public Tile? SelectedTile { get; set; }
     public int ActiveLayer { get; set; } = 0;
     public required Area Area { get; set; }
     private DotNetObjectReference<AreaEditor>? dotNetRef;
-    private int? previousAreaId = null;
-    private int? selectedPaletteId;
+    private Guid? previousAreaId = null;
+    private Guid? selectedPaletteId;
 
 
     public required TileMapCanvas TileMapCanvas { get; set; }
@@ -45,7 +45,7 @@ public partial class AreaEditor : IDisposable
         InvokeAsync(StateHasChanged);
     }
 
-    public void OnTileSelected(int tileId)
+    public void OnTileSelected(Guid tileId)
     {
         if (Area == null || !selectedPaletteId.HasValue)
         {
@@ -63,7 +63,7 @@ public partial class AreaEditor : IDisposable
 
     private void OnPaletteChanged(ChangeEventArgs e)
     {
-        if (int.TryParse(e.Value?.ToString(), out int newPaletteId))
+        if (Guid.TryParse(e.Value?.ToString(), out Guid newPaletteId))
         {
             selectedPaletteId = newPaletteId;
             // Reset selected tile when palette changes

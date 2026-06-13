@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 public class TileChangeDelta : IDefinitionDelta
 {
-    public int AreaId { get; set; }
+    public Guid AreaId { get; set; }
     public int TileMapLevel { get; set; }
     public List<TileCellChange> Changes { get; set; } = new();
 
@@ -35,9 +35,9 @@ public class TileCellChange
     public int Y { get; set; }
     public int OldElevation { get; set; }
     public int NewElevation { get; set; }
-    public int? OldTileId { get; set; }
-    public int? NewTileId { get; set; }
+    public Guid? OldTileId { get; set; }
+    public Guid? NewTileId { get; set; }
 
-    public int? OldPaletteId { get; set; }
-    public int? NewPaletteId { get; set; }
+    public Guid? OldPaletteId { get; set; }
+    public Guid? NewPaletteId { get; set; }
 }

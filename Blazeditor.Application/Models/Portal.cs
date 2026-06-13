@@ -5,13 +5,13 @@ namespace Blazeditor.Application.Models
         public Portal() : base() { }
         public Portal(Area destinationArea, Area locationArea, int destX, int destY, int locX, int locY) : base(destinationArea.Name, locationArea.Name)
         {
-            DestinationArea = destinationArea;
-            LocationArea = locationArea;
+            DestinationAreaId = destinationArea.Id;
+            LocationAreaId = locationArea.Id;
             Destination = new Coordinate(destX, destY);
             Location = new Coordinate(locX, locY);
         }
-        public Area? DestinationArea { get; set; }
-        public Area? LocationArea { get; set; }
+        public Guid? DestinationAreaId { get; set; }
+        public Guid? LocationAreaId { get; set; }
         public Coordinate Destination { get; set; }
         public Coordinate Location { get; set; }
     }

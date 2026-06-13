@@ -8,18 +8,36 @@ using Size = Blazeditor.Application.Models.Size;
 
 namespace Blazeditor.Application.Services;
 
+/// <summary>
+/// Scoped service that owns the in-memory <see cref="Definition"/> graph (areas, tile maps,
+/// tile palettes, portals) for the current user session. It is the single point through which
+/// the editor UI reads and mutates game data, persists it via <see cref="DefinitionSerializerService"/>,
+/// and is notified of changes via <see cref="OnChanged"/>.
+/// One instance is created per DI scope (per circuit/session in Blazor Server).
+/// </summary>
 public class DefinitionManager : IDisposable
 {
     private readonly DefinitionSerializerService _serializerService;
+    private readonly IWebHostEnvironment _env;
+
+    /// <summary>True when the in-memory <see cref="Definition"/> has unsaved changes.</summary>
     public bool IsDirty { get; private set; } = false;
+
+    /// <summary>The full definition graph currently loaded into memory. Replaced wholesale on <see cref="LoadDefinition"/>.</summary>
     private Definition _definition = new Definition();
+
+    /// <summary>The area currently focused in the editor UI. Not persisted and does not raise <see cref="OnChanged"/>.</summary>
     public Area? SelectedArea { get; set; }
 
+    /// <summary>Raised after any mutation to <see cref="_definition"/> so UI components can refresh.</summary>
     public event Action<Definition>? OnChanged;
+
     // --- Undo/Redo for Tile Edits ---
+    // Captures enough state to reverse a single ExecuteTileEdit call: the tile/elevation that
+    // was at (X, Y) on the given area/tile-map level before the edit, and the values applied by it.
     private class TileEditUndo
     {
-        public int AreaId { get; set; }
+        public Guid AreaId { get; set; }
         public int TileMapLevel { get; set; }
         public int X { get; set; }
         public int Y { get; set; }
@@ -31,19 +49,28 @@ public class DefinitionManager : IDisposable
     private readonly Stack<TileEditUndo> _tileUndoStack = new();
     private readonly Stack<TileEditUndo> _tileRedoStack = new();
 
-    public DefinitionManager(IHttpContextAccessor httpContextAccessor)
+    public DefinitionManager(DefinitionSerializerService serializerService, IWebHostEnvironment env)
     {
         Console.WriteLine("Creating DefinitionManager.");
-        _serializerService = new DefinitionSerializerService(httpContextAccessor);
-        LoadDefinitionAsync().GetAwaiter().GetResult();
+        _serializerService = serializerService;
+        _env = env;
+        // Synchronously block on the initial load so the definition is ready as soon as the
+        // service is constructed (DI does not support async construction).
+        LoadDefinition();
     }
 
-    public void ExecuteTileEdit(int areaId, int level, int x, int y, Tile? newTile, int elevation = 0)
+    /// <summary>
+    /// Places (or clears, if <paramref name="newTile"/> is null) a tile at (<paramref name="x"/>, <paramref name="y"/>)
+    /// on the given area/level, recording the previous state on the undo stack and clearing the redo stack.
+    /// </summary>
+    public void ExecuteTileEdit(Guid areaId, int level, int x, int y, Tile? newTile, int elevation = 0)
     {
         if (!_definition.Areas.TryGetValue(areaId, out var area)) return;
         if (!area.TileMaps.TryGetValue(level, out var map)) return;
         var oldPlacement = map.GetPlacement(x, y);
-        var oldTile = oldPlacement != null && oldPlacement.TileId.HasValue && oldPlacement.PaletteId.HasValue &&  GetPalette(oldPlacement.PaletteId.Value).Tiles.TryGetValue(oldPlacement.TileId.Value, out var t) ? t : null;
+        // Resolve the previously placed tile (if any) from its source palette so the undo entry
+        // can restore the exact tile reference, not just its id.
+        var oldTile = oldPlacement != null && oldPlacement.TileId.HasValue && oldPlacement.PaletteId.HasValue && GetPalette(oldPlacement.PaletteId.Value).Tiles.TryGetValue(oldPlacement.TileId.Value, out var t) ? t : null;
         var undo = new TileEditUndo
         {
             AreaId = areaId,
@@ -62,6 +89,7 @@ public class DefinitionManager : IDisposable
         OnChanged?.Invoke(_definition);
     }
 
+    /// <summary>Reverts the most recent <see cref="ExecuteTileEdit"/> and pushes it onto the redo stack.</summary>
     public void UndoTileEdit()
     {
         if (_tileUndoStack.Count == 0) return;
@@ -74,6 +102,7 @@ public class DefinitionManager : IDisposable
         OnChanged?.Invoke(_definition);
     }
 
+    /// <summary>Re-applies the most recently undone <see cref="ExecuteTileEdit"/> and pushes it back onto the undo stack.</summary>
     public void RedoTileEdit()
     {
         if (_tileRedoStack.Count == 0) return;
@@ -86,21 +115,31 @@ public class DefinitionManager : IDisposable
         OnChanged?.Invoke(_definition);
     }
 
+    /// <summary>
+    /// Persists the entire in-memory <see cref="Definition"/> (areas, tile palettes, portals) to the
+    /// database and clears <see cref="IsDirty"/>. Errors are logged but not rethrown, so callers cannot
+    /// detect failure other than via <see cref="IsDirty"/> remaining true.
+    /// </summary>
     public virtual async Task SaveAsync()
     {
         try
         {
-            _serializerService.SaveDefinition(_definition);
+            await _serializerService.SaveDefinitionAsync(_definition);
             IsDirty = false;
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"[DefinitionManager] Error saving definition: {ex.Message}\n{ex.StackTrace}");
         }
-        await Task.CompletedTask;
     }
 
-    public virtual async Task LoadDefinitionAsync()
+    /// <summary>
+    /// Replaces the in-memory <see cref="Definition"/> with the contents of the database and resets
+    /// <see cref="IsDirty"/>. Each loaded tile map is resized to match its area's current
+    /// <see cref="Area.Size"/>, since an area's configured size may have changed since the tile map was
+    /// last saved.
+    /// </summary>
+    public virtual void LoadDefinition()
     {
         try
         {
@@ -119,7 +158,6 @@ public class DefinitionManager : IDisposable
         {
             Console.Error.WriteLine($"[DefinitionManager] Error loading definition: {ex.Message}\n{ex.StackTrace}");
         }
-        await Task.CompletedTask;
     }
 
     private void MarkDirty() => IsDirty = true;
@@ -129,6 +167,7 @@ public class DefinitionManager : IDisposable
         return _definition.Areas.Values;
     }
 
+    /// <summary>Adds a new, empty area (no tile maps) to the definition.</summary>
     public Area AddArea(string name, string description, Size areaSize, int cellSize = 64)
     {
         var area = new Area(name, description, areaSize, cellSize);
@@ -138,6 +177,7 @@ public class DefinitionManager : IDisposable
         return area;
     }
 
+    /// <summary>Adds a new area sized in 32x32 grid units, pre-populated with a single "Default" tile map at layer 0.</summary>
     public Area AddArea(string name, string description, int width, int height, int cellSize = 64)
     {
         var area = new Area(name, description, new Size(width, height), cellSize);
@@ -148,23 +188,29 @@ public class DefinitionManager : IDisposable
         return area;
     }
 
-    public void RemoveArea(int areaId)
+    /// <summary>Removes an area and its tile maps. No-op if the area does not exist.</summary>
+    public void RemoveArea(Guid areaId)
     {
         _definition.Areas.Remove(areaId);
         MarkDirty();
         OnChanged?.Invoke(_definition);
     }
 
-    public bool IsPaletteUsed(int paletteId)
+    /// <summary>True if any area references the given tile palette via <see cref="Area.TilePaletteIds"/>.</summary>
+    public bool IsPaletteUsed(Guid paletteId)
     {
-        return _definition.Areas.Values.Any(a => a.TilePaletteIds.Any(p=> p == paletteId));
+        return _definition.Areas.Values.Any(a => a.TilePaletteIds.Any(p => p == paletteId));
     }
 
-    public void RemoveTilePalette(int paletteId)
+    /// <summary>
+    /// Removes a tile palette, throwing if it does not exist or is still referenced by an area's
+    /// <see cref="Area.TilePaletteIds"/> (per <see cref="IsPaletteUsed"/>).
+    /// </summary>
+    public void RemoveTilePalette(Guid paletteId)
     {
         if (!_definition.TilePalettes.ContainsKey(paletteId))
             throw new KeyNotFoundException($"Tile palette with ID {paletteId} not found.");
-        if (IsPaletteUsed(paletteId)) 
+        if (IsPaletteUsed(paletteId))
             throw new InvalidOperationException($"Cannot remove tile palette {paletteId} because it is still in use by one or more areas.");
         if (_definition.TilePalettes.Remove(paletteId))
         {
@@ -173,7 +219,7 @@ public class DefinitionManager : IDisposable
         }
     }
 
-    public TilePalette GetPalette(int paletteId)
+    public TilePalette GetPalette(Guid paletteId)
     {
         if (_definition.TilePalettes.TryGetValue(paletteId, out var palette))
             return palette;
@@ -185,9 +231,16 @@ public class DefinitionManager : IDisposable
         return _definition.TilePalettes.Values;
     }
 
-    public Dictionary<int, Tile> ExtractTilesFromJsonTilesheet(string jsonFilename, int paletteId)
+    /// <summary>
+    /// Reads a tilesheet manifest (e.g. wwwroot/tilesets/tilesheet_packed.json) describing one or more
+    /// source images ("sheets") and the individual tile rectangles ("tiles") within them, crops each
+    /// tile out of its sheet image, and returns it as a new <see cref="Tile"/> with an embedded
+    /// base64-encoded PNG, keyed by the tile's generated id. Tiles are not added to any palette by this
+    /// method - see <see cref="ImportTileset"/>.
+    /// </summary>
+    public Dictionary<Guid, Tile> ExtractTilesFromJsonTilesheet(string jsonFilename, Guid paletteId)
     {
-        var jsonPath = Path.Combine("wwwroot", "tilesets", jsonFilename);
+        var jsonPath = Path.Combine(_env.WebRootPath, "tilesets", jsonFilename);
         if (!File.Exists(jsonPath)) throw new FileNotFoundException($"JSON file not found: {jsonPath}");
         var json = File.ReadAllText(jsonPath);
         var doc = JsonDocument.Parse(json);
@@ -204,13 +257,13 @@ public class DefinitionManager : IDisposable
                 var cellSize = sheetObj.GetProperty("cellSize").GetInt32();
                 var id = sheetObj.GetProperty("id").GetInt32();
                 sheets.Add((sheetName, cellSize, id));
-                var imagePath = Path.Combine("wwwroot", "tilesets", sheetName);
+                var imagePath = Path.Combine(_env.WebRootPath, "tilesets", sheetName);
                 if (!File.Exists(imagePath)) throw new FileNotFoundException($"Image file not found: {imagePath}");
                 sheetImages[id] = Image.Load<Rgba32>(imagePath);
             }
         }
 
-        var result = new Dictionary<int, Tile>();
+        var result = new Dictionary<Guid, Tile>();
         var tilesElem = root.GetProperty("tiles");
         foreach (var tileElem in tilesElem.EnumerateArray())
         {
@@ -247,10 +300,13 @@ public class DefinitionManager : IDisposable
         return result;
     }
 
-    public TilePalette ImportTileset(string jsonFilename, int? paletteId)
+    /// <summary>
+    /// Imports tiles from a tilesheet manifest into a tile palette, creating a new palette unless
+    /// <paramref name="paletteId"/> identifies an existing one. Tiles whose id already exists in the
+    /// target palette are skipped, so re-importing the same manifest will not duplicate or overwrite tiles.
+    /// </summary>
+    public TilePalette ImportTileset(string jsonFilename, Guid? paletteId)
     {
-        
-
         TilePalette palette;
         if (paletteId.HasValue && _definition.TilePalettes.TryGetValue(paletteId.Value, out var existingPalette))
         {
@@ -265,8 +321,8 @@ public class DefinitionManager : IDisposable
             palette = new TilePalette(name, description);
             _definition.TilePalettes[palette.Id] = palette;
         }
-        Dictionary<int, Tile> tiles = new Dictionary<int, Tile>();
-        var jsonPath = Path.Combine("wwwroot", "tilesets", jsonFilename);
+        Dictionary<Guid, Tile> tiles = new Dictionary<Guid, Tile>();
+        var jsonPath = Path.Combine(_env.WebRootPath, "tilesets", jsonFilename);
         if (File.Exists(jsonPath))
         {
             tiles = ExtractTilesFromJsonTilesheet(jsonFilename, palette.Id);
@@ -288,6 +344,6 @@ public class DefinitionManager : IDisposable
 
     public void Dispose()
     {
-        // No longer need to dispose LiteDatabase here, handled by serializer service if needed
+        // No-op: BlazeditorDbContext is owned by DI and disposed at the end of the scope.
     }
 }
