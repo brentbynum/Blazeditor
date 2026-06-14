@@ -16,6 +16,7 @@ public partial class AreaEditor : IDisposable
     private DotNetObjectReference<AreaEditor>? dotNetRef;
     private Guid? previousAreaId = null;
     private Guid? selectedPaletteId;
+    private string tileSearchText = "";
 
 
     public required TileMapCanvas TileMapCanvas { get; set; }
@@ -28,15 +29,21 @@ public partial class AreaEditor : IDisposable
         {
             await Definition.SaveAsync();
         }
+        var isNewArea = previousAreaId != AreaId;
         previousAreaId = AreaId;
         Definition.SelectedArea = Definition.GetAreas().FirstOrDefault(a => a.Id == AreaId);
         Area = Definition.SelectedArea ?? throw new InvalidOperationException($"Area with ID {AreaId} not found.");
+        if (isNewArea)
+        {
+            // Default to first palette in the area, or none
+            selectedPaletteId = Area.TilePaletteIds.Count > 0 ? Area.TilePaletteIds[0] : null;
+            SelectedTile = null;
+            ActiveLayer = Area.TileMaps.Count > 0 ? Area.TileMaps.Keys.Min() : 0;
+        }
     }
 
     protected override void OnInitialized()
     {
-        // Default to first palette in area or null
-        selectedPaletteId = Area?.TilePaletteIds.FirstOrDefault();
         Definition.OnChanged += HandleDefinitionChanged;
     }
 
@@ -68,9 +75,7 @@ public partial class AreaEditor : IDisposable
             selectedPaletteId = newPaletteId;
             // Reset selected tile when palette changes
             SelectedTile = null;
-            if (!Area.TilePaletteIds.Contains(newPaletteId)) {
-                Area.TilePaletteIds.Add(newPaletteId);
-            }
+            Definition.AddTilePaletteToArea(Area, newPaletteId);
             TileMapCanvas?.UpdateTilePalette();
             StateHasChanged();
         }

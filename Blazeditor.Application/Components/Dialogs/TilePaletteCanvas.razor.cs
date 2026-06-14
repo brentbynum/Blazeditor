@@ -12,12 +12,14 @@ public partial class TilePaletteCanvas : IDisposable
     private ElementReference canvasRef;
     [Parameter] public required Area Area { get; set; }
     [Parameter] public Guid? SelectedPaletteId { get; set; }
+    [Parameter] public string? SearchText { get; set; }
     [Parameter] public EventCallback<Guid> OnTileSelected { get; set; }
 
     private DotNetObjectReference<TilePaletteCanvas>? dotNetRef;
 
     private bool _shouldInitJs = false;
     private bool _firstRenderDone = false;
+    private bool _initialized = false;
 
     protected override void OnParametersSet()
     {
@@ -41,8 +43,17 @@ public partial class TilePaletteCanvas : IDisposable
             var palette = Definition.GetPalette(SelectedPaletteId.Value);
             if (_firstRenderDone && _shouldInitJs && palette != null && JS != null)
             {
-                // Ask JS to calculate and set the required canvas height and initialize with the area palette and cell size
-                await JS.InvokeVoidAsync("tilePaletteCanvas.init", canvasRef, palette.Tiles, palette.CellSize);
+                var tiles = TileSearch.Filter(palette.Tiles.Values, SearchText).ToDictionary(t => t.Id, t => t);
+                if (!_initialized)
+                {
+                    // Ask JS to calculate and set the required canvas height and initialize with the area palette and cell size
+                    await JS.InvokeVoidAsync("tilePaletteCanvas.init", canvasRef, tiles, palette.CellSize);
+                    _initialized = true;
+                }
+                else
+                {
+                    await JS.InvokeVoidAsync("tilePaletteCanvas.updateTiles", tiles, palette.CellSize);
+                }
                 _shouldInitJs = false;
             }
         }

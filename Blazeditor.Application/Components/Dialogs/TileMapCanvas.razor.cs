@@ -21,11 +21,18 @@ public partial class TileMapCanvas : IDisposable
 
     private bool _shouldInitJs = false;
     private bool _shouldInitMap = true; // Flag to re-initialize map
+    private bool _shouldReloadArea = false; // Flag to load a different area's data into the canvas
+    private Guid? _loadedAreaId;
 
     protected override void OnParametersSet()
     {
         // Set a flag to re-initialize JS after parameters change
         _shouldInitJs = true;
+
+        if (_loadedAreaId.HasValue && _loadedAreaId.Value != Area.Id)
+        {
+            _shouldReloadArea = true;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -45,7 +52,15 @@ public partial class TileMapCanvas : IDisposable
                 // The map only ever gets init-ed once, and the tilemaps get synched manually on add/remove
                 await JS.InvokeVoidAsync("tileMapCanvas.init", canvasRef, Area.TileMaps, Area.CellSize, Area.Size, paletteTiles);
                 _shouldInitMap = false; // Reset flag after initialization
-
+                _loadedAreaId = Area.Id;
+            }
+            else if (_shouldReloadArea)
+            {
+                var paletteTiles = Definition.GetTilePalettes().SelectMany(p => p.Tiles).ToDictionary();
+                await JS.InvokeVoidAsync("tileMapCanvas.loadArea", Area.TileMaps, Area.CellSize, Area.Size, paletteTiles);
+                SelectedCells = new();
+                _loadedAreaId = Area.Id;
+                _shouldReloadArea = false;
             }
             if (_shouldInitJs)
             {
@@ -127,10 +142,7 @@ public partial class TileMapCanvas : IDisposable
         var areaId = Area.Id;
         if (SelectedTile != null && JS != null)
         {
-            if (Area.TilePaletteIds.Contains(SelectedTile.SourcePaletteId) == false)
-            {
-                Area.TilePaletteIds.Add(SelectedTile.SourcePaletteId);
-            }
+            Definition.AddTilePaletteToArea(Area, SelectedTile.SourcePaletteId);
             var palette = Definition.GetPalette(SelectedTile.SourcePaletteId);
             if (palette != null && SelectedTile != null && palette.Tiles.TryGetValue(SelectedTile.Id, out Tile? tile))
             {
@@ -203,10 +215,7 @@ public partial class TileMapCanvas : IDisposable
     {
         if (Area == null || Area.TilePaletteIds.Count() > 0 || Area.TileMaps == null || SelectedTile == null)
             return;
-        if (Area.TilePaletteIds.Contains(SelectedTile.SourcePaletteId) == false)
-        {
-            Area.TilePaletteIds.Add(SelectedTile.SourcePaletteId);
-        }
+        Definition.AddTilePaletteToArea(Area, SelectedTile.SourcePaletteId);
         var updates = new List<object>();
         var palette = Definition.GetPalette(SelectedTile.SourcePaletteId);
         if (palette == null || !palette.Tiles.ContainsKey(SelectedTile.Id))

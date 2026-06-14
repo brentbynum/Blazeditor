@@ -414,6 +414,28 @@
             running = false;
             this.startRenderLoop();
         },
+        // Loads a different area's data into an already-initialized canvas, without re-registering
+        // event listeners. Resets per-area view/interaction state (pan, zoom, selection, hover).
+        loadArea: async function (tileMapsArg, cellSizeArg, mapSizeArg, tilePaletteArg) {
+            if (mapSizeArg) {
+                window.tileMapState.mapSize = mapSizeArg;
+            }
+            if (tilePaletteArg) {
+                window.tileMapState.tilePalette = tilePaletteArg;
+                paletteRoles = await analyzePalette(window.tileMapState.tilePalette);
+            }
+            if (tileMapsArg) {
+                tileMaps = tileMapsArg;
+                updateFloorTileLayout();
+            }
+            if (cellSizeArg) {
+                window.tileMapState.cellSize = 32; // Always use 32 for placement
+            }
+            window.tileMapState.selectedCells = [];
+            window.tileMapState.origin = { x: 0, y: 0 };
+            window.tileMapState.scale = 1;
+            hoveredCell = { x: -1, y: -1, layer: 0 };
+        },
         updateTileMaps: function (val) {
             if (val) {
                 tileMaps = val;

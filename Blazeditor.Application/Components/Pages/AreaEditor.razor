@@ -39,7 +39,8 @@
                     }
                 </select>
             </div>
-            <TilePaletteCanvas @ref=TilePaletteCanvas Area="@Area" SelectedPaletteId="@selectedPaletteId" OnTileSelected="OnTileSelected" />
+            <input class="form-control mb-2" type="search" placeholder="Search tiles..." @bind="tileSearchText" @bind:event="oninput" />
+            <TilePaletteCanvas @ref=TilePaletteCanvas Area="@Area" SelectedPaletteId="@selectedPaletteId" SearchText="@tileSearchText" OnTileSelected="OnTileSelected" />
             <MapLayerSelector Layers="Area.TileMaps" ActiveLayer="@ActiveLayer" OnLayerSelected="OnLayerSelected" OnRemoveLayer="OnRemoveLayer" OnAddLayer="OnAddLayer" />
             @if (SelectedTile != null)
             {

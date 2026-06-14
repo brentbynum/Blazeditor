@@ -196,6 +196,18 @@ public class DefinitionManager : IDisposable
         OnChanged?.Invoke(_definition);
     }
 
+    /// <summary>
+    /// Adds a tile palette to an area's <see cref="Area.TilePaletteIds"/> if not already present,
+    /// marking the definition dirty and raising <see cref="OnChanged"/>. No-op if already present.
+    /// </summary>
+    public void AddTilePaletteToArea(Area area, Guid paletteId)
+    {
+        if (area.TilePaletteIds.Contains(paletteId)) return;
+        area.TilePaletteIds.Add(paletteId);
+        MarkDirty();
+        OnChanged?.Invoke(_definition);
+    }
+
     /// <summary>True if any area references the given tile palette via <see cref="Area.TilePaletteIds"/>.</summary>
     public bool IsPaletteUsed(Guid paletteId)
     {

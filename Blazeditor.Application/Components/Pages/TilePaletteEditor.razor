@@ -17,6 +17,11 @@
     private Guid? selectedTileId = null;
     private Tile? SelectedTile => selectedTileId.HasValue && Palette != null && Palette.Tiles.TryGetValue(selectedTileId.Value, out var t) ? t : null;
 
+    private string tileSearchText = "";
+
+    private IEnumerable<Tile> FilteredTiles
+        => Palette == null ? Enumerable.Empty<Tile>() : TileSearch.Filter(Palette.Tiles.Values, tileSearchText);
+
     private bool editingName = false;
     private bool editingDescription = false;
     private string? editName;
@@ -248,8 +253,9 @@ else
         </div>
         <div class="row">
             <div class="col-4 border-end" style="min-width:180px;">
+                <input class="form-control mb-2" type="search" placeholder="Search tiles..." @bind="tileSearchText" @bind:event="oninput" />
                 <div class="list-group" style="max-height: calc(100vh - 200px); overflow-y: auto;">
-                    @foreach (var tile in Palette.Tiles.Values.OrderBy(t => t.Name))
+                    @foreach (var tile in FilteredTiles)
                     {
                         <button class="list-group-item list-group-item-action d-flex align-items-center @(selectedTileId == tile.Id ? "active" : null)" @onclick="() => SelectTile(tile.Id)">
                             <img src="@tile.Image" style="width:64px; height:64px; object-fit:contain; margin-right:10px;" />

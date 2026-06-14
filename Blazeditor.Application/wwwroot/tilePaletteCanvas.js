@@ -20,50 +20,66 @@
         const mouseY = (e.clientY - rect.top) * scaleY;
         return { x: mouseX, y: mouseY };
     }
+    function setTiles(tiles, cellSizeArg) {
+        if (cellSizeArg) {
+            cellSize = cellSizeArg;
+        }
+        // Use a bin packer to simulate placement and get the max Y
+        let bin = new MaxRectsBin(paletteCanvas.width, 100000); // Large height
+        let maxY = 0;
+        Object.keys(tiles).forEach(key => {
+            let w = tiles[key].size.width * cellSize;
+            let h = tiles[key].size.height * cellSize;
+            let pos = bin.insert(w, h);
+            if (pos) {
+                maxY = Math.max(maxY, pos.y + h);
+            }
+        });
+        // Add a little padding
+        paletteCanvas.height = Math.ceil(maxY + 8);
+
+        paletteTiles = Object.values(tiles).slice().sort((a, b) => {
+            // Floor tiles are sorted to the top of the canvas, ahead of all other roles.
+            const aFloor = a.role === window.blazeditor.tileRole.floor ? 0 : 1;
+            const bFloor = b.role === window.blazeditor.tileRole.floor ? 0 : 1;
+            if (aFloor !== bFloor) return aFloor - bFloor;
+            return (b.size.width * b.size.height) - (a.size.width * a.size.height);
+        });
+
+        // Now we need to iterate all of the tiles and set their initial state
+        for (let tile of paletteTiles) {
+            if (!(tile.image && tile.image.startsWith('data:image'))) {
+                tile.image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8//8/AwAI/wP+vQAAAABJRU5ErkJggg=='; // Placeholder image
+            }
+            let tileImage = new window.Image();
+            tileImage.src = tile.image;
+            tile.paletteState = {
+                isMouseOver: false,
+                layout: null,
+                image: tileImage,
+                isLoaded: false
+            };
+            tileImage.onload = function () {
+                tile.paletteState.isLoaded = true;
+            };
+        }
+    }
     window.tilePaletteCanvas = {
         init: function (canvas, tiles, cellSizeArg) {
-            
-
             cellSize = cellSizeArg || { width: 64, height: 64 };
-            // Use a bin packer to simulate placement and get the max Y
-            let bin = new MaxRectsBin(canvas.width, 100000); // Large height
-            let maxY = 0;
-            Object.keys(tiles).forEach(key => {
-                let w = tiles[key].size.width * cellSize;
-                let h = tiles[key].size.height * cellSize;
-                let pos = bin.insert(w, h);
-                if (pos) {
-                    maxY = Math.max(maxY, pos.y + h);
-                }
-            });
-            // Add a little padding
-            canvas.height = Math.ceil(maxY + 8);
-
             paletteCanvas = canvas;
             paletteCanvas.onmousemove = this.mousemove;
             paletteCanvas.onmouseleave = this.onmouseleave;
             paletteCanvas.onclick = this.click;
             paletteContext = paletteCanvas.getContext('2d');
-            paletteTiles = Object.values(tiles).slice().sort((a, b) => (b.size.width * b.size.height) - (a.size.width * a.size.height));
 
-            // Now we need to iterate all of the tiles and set their initial state
-            for (let tile of paletteTiles) {
-                if (!(tile.image && tile.image.startsWith('data:image'))) {
-                    tile.image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8//8/AwAI/wP+vQAAAABJRU5ErkJggg=='; // Placeholder image
-                }
-                tileImage = new window.Image();
-                tileImage.src = tile.image;
-                tile.paletteState = {
-                    isMouseOver: false,
-                    layout: null,
-                    image: tileImage,
-                    isLoaded: false
-                };
-                tileImage.onload = function () {
-                    tile.paletteState.isLoaded = true;
-                };
-            }
+            setTiles(tiles, cellSize);
             this.startRenderLoop();
+        },
+        // Updates the displayed tile set (e.g. when a search filter changes) without
+        // re-registering canvas event listeners or restarting the render loop.
+        updateTiles: function (tiles, cellSizeArg) {
+            setTiles(tiles, cellSizeArg);
         },
         mousemove: function (e) {
             if (!paletteTiles || paletteTiles.length === 0) return;
