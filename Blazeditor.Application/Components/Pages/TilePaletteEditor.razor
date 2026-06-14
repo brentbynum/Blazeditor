@@ -13,7 +13,6 @@
     public Guid paletteId { get; set; }
     private TilePalette? Palette;
     private bool notFound = false;
-    private int cellSize = 64; // Default fallback
     private Guid? selectedTileId = null;
     private Tile? SelectedTile => selectedTileId.HasValue && Palette != null && Palette.Tiles.TryGetValue(selectedTileId.Value, out var t) ? t : null;
 
@@ -51,7 +50,6 @@
             Palette = DefinitionManager.GetPalette(paletteId);
             if (Palette != null)
             {
-                cellSize = Palette.CellSize;
                 if (Palette.Tiles.Count > 0)
                     selectedTileId = Palette.Tiles.Keys.First();
                 editName = Palette.Name;
@@ -200,7 +198,7 @@
     {
         // TODO: Validate and replace tile image here        
         var image = Image.Load<Rgba32>(imagePath);
-        if (image.Width != SelectedTile!.Size.Width * cellSize || image.Height != SelectedTile!.Size.Height * cellSize)
+        if (image.Width != SelectedTile!.Size.Width * GridConstants.CellSize || image.Height != SelectedTile!.Size.Height * GridConstants.CellSize)
         {
             // TODO: Tell the user the new tile image is the wrong size to replace the tile
         }
@@ -278,7 +276,7 @@ else
                                 <h5 class="card-title" style="cursor:pointer;" @onclick="StartEditTileName">@SelectedTile.Name</h5>
                             }
                             <div class="tile-image-display">
-                                <img src="@SelectedTile.Image" style="display:block; margin:auto; width:@(SelectedTile.Size.Width* cellSize)px; height:@(SelectedTile.Size.Height* cellSize)px;" />
+                                <img src="@SelectedTile.Image" style="display:block; margin:auto; width:@(SelectedTile.Size.Width * GridConstants.CellSize)px; height:@(SelectedTile.Size.Height * GridConstants.CellSize)px;" />
                                 <button class="btn btn-outline-primary mt-2" @onclick="OpenReplaceTileImageDialog">Replace Tile Image</button>
 
                             </div>

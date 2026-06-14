@@ -6,9 +6,9 @@
     };
     let shimType = {
         none: 0,
-        run: 'Run',
-        capMask: 'CapMask',
-        overhangMask: 'OverhangMask'
+        run: 1,
+        capMask: 2,
+        overhangMask: 3
     };
 
     window.blazeditor = {

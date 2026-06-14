@@ -76,7 +76,8 @@
             {
                 var firstSheetObj = sheets[0];
                 string? sheetName = null;
-                if (firstSheetObj.ValueKind == System.Text.Json.JsonValueKind.Object && firstSheetObj.TryGetProperty("sheetName", out var sheetNameProp))
+                if (firstSheetObj.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                    firstSheetObj.TryGetProperty("sheetName", out var sheetNameProp))
                 {
                     sheetName = sheetNameProp.GetString();
                 }
@@ -144,7 +145,8 @@
                     </div>
                 </div>
                 <div class="mt-4 d-flex justify-content-end">
-                    <button type="button" class="btn btn-primary me-2" @onclick="Confirm" disabled="@(string.IsNullOrEmpty(SelectedFilename))">Confirm</button>
+                    <button type="button" class="btn btn-primary me-2" @onclick="Confirm"
+                            disabled="@(string.IsNullOrEmpty(SelectedFilename))">Confirm</button>
                     <button type="button" class="btn btn-secondary" @onclick="Close">Cancel</button>
                 </div>
             </div>

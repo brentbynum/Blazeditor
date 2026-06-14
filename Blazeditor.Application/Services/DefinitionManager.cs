@@ -304,7 +304,10 @@ public class DefinitionManager : IDisposable
                 tileImg.Save(ms, new PngEncoder());
                 var base64 = Convert.ToBase64String(ms.ToArray());
                 var base64Url = $"data:image/png;base64,{base64}";
-                var tile = new Tile(name, description, sheetInfo.sheetName, base64Url, new Size(w, h), paletteId);
+                // Convert from the sheet's own cell units (w x h cells of cellSize px) to the
+                // app's universal 32px grid units used by Tile.Size.
+                var gridSize = new Size(w * cellSize / GridConstants.CellSize, h * cellSize / GridConstants.CellSize);
+                var tile = new Tile(name, description, sheetInfo.sheetName, base64Url, gridSize, paletteId);
                 result.Add(tile.Id, tile);
             }
         }

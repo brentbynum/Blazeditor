@@ -47,12 +47,12 @@ public partial class TilePaletteCanvas : IDisposable
                 if (!_initialized)
                 {
                     // Ask JS to calculate and set the required canvas height and initialize with the area palette and cell size
-                    await JS.InvokeVoidAsync("tilePaletteCanvas.init", canvasRef, tiles, palette.CellSize);
+                    await JS.InvokeVoidAsync("tilePaletteCanvas.init", canvasRef, tiles, GridConstants.CellSize);
                     _initialized = true;
                 }
                 else
                 {
-                    await JS.InvokeVoidAsync("tilePaletteCanvas.updateTiles", tiles, palette.CellSize);
+                    await JS.InvokeVoidAsync("tilePaletteCanvas.updateTiles", tiles, GridConstants.CellSize);
                 }
                 _shouldInitJs = false;
             }

@@ -57,13 +57,13 @@ public class TileMap : BaseEntity
     }
 
     // Set or update tile placement at (x, y) in 32x32 grid units
-    public void SetPlacement(int x, int y, Guid? tileId, Guid? paletteId, int? elevation)
+    public void SetPlacement(int x, int y, Guid? tileId, Guid? paletteId, int elevation)
     {
         int idx = GetKey(x, y);
         if (idx < 0 || idx >= TilePlacements.Length) return;
         if (tileId.HasValue)
         {
-            TilePlacements[idx] = new TilePlacement { X = x, Y = y, TileId = tileId, PaletteId = paletteId, Elevation = elevation ?? 0 };
+            TilePlacements[idx] = new TilePlacement { X = x, Y = y, TileId = tileId, PaletteId = paletteId, Elevation = elevation };
         }
         else
         {

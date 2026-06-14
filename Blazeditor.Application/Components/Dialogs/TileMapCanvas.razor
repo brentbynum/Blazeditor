@@ -14,33 +14,40 @@
         <!-- Vertical Toolbar -->
         <div id="mapEditorButtons" class="btn-toolbar flex-column me-3">
             <div id="toolButtons" class="btn-group-vertical mb-2">
-                <button class='btn btn-outline-secondary @(selectedTool == "select" ? "active" : "")' type="button" title="Select" @onclick='() => SelectTool("select")'>
+                <button class='btn btn-outline-secondary @(selectedTool == "select" ? "active" : "")' type="button"
+                        title="Select" @onclick='() => SelectTool("select")'>
                     <i class="bi bi-cursor"></i>
                 </button>
-                <button class='btn btn-outline-secondary @(selectedTool == "paint" ? "active" : "")' type="button" title="Paint" @onclick='() => SelectTool("paint")'>
+                <button class='btn btn-outline-secondary @(selectedTool == "paint" ? "active" : "")' type="button"
+                        title="Paint" @onclick='() => SelectTool("paint")'>
                     <i class="bi bi-brush"></i>
                 </button>
-                <button class='btn btn-outline-secondary @(selectedTool == "elevate" ? "active" : "")' type="button" title="Elevate" @onclick='() => SelectTool("elevate")'>
+                <button class='btn btn-outline-secondary @(selectedTool == "elevate" ? "active" : "")' type="button"
+                        title="Elevate" @onclick='() => SelectTool("elevate")'>
                     <i class="bi bi-bar-chart-steps"></i>
                 </button>
-                <button class='btn btn-outline-secondary @(selectedTool == "fill" ? "active" : "")' type="button" title="Fill" @onclick='() => SelectTool("fill")'>
+                <button class='btn btn-outline-secondary @(selectedTool == "fill" ? "active" : "")' type="button"
+                        title="Fill" @onclick='() => SelectTool("fill")'>
                     <i class="bi bi-paint-bucket"></i>
                 </button>
-                <button class='btn btn-outline-secondary @(selectedTool == "erase" ? "active" : "")' type="button" title="Erase" @onclick='() => SelectTool("erase")'>
+                <button class='btn btn-outline-secondary @(selectedTool == "erase" ? "active" : "")' type="button"
+                        title="Erase" @onclick='() => SelectTool("erase")'>
                     <i class="bi bi-eraser"></i>
                 </button>
-                <button class='btn btn-outline-secondary @(selectedTool == "pan" ? "active" : "")' type="button" title="Pan" @onclick='() => SelectTool("pan")'>
+                <button class='btn btn-outline-secondary @(selectedTool == "pan" ? "active" : "")' type="button"
+                        title="Pan" @onclick='() => SelectTool("pan")'>
                     <i class="bi bi-arrows-move"></i>
                 </button>
             </div>
             <div id="actionButtons" class="btn-group-vertical">
-                <button class="btn btn-outline-secondary" @onclick="@ClearTileMaps">
+                <button class="btn btn-outline-secondary" @onclick="@ClearTileMapsAsync">
                     <i class="bi bi-trash"></i>
                 </button>
             </div>
         </div>
         <!-- Canvas -->
-        <canvas @ref="canvasRef" width="1024" height="1024" style="border:1px solid #ccc; background-color: #387852; width:100%;" tabindex="1"></canvas>
+        <canvas @ref="canvasRef" width="1024" height="1024"
+                style="border:1px solid #ccc; background-color: #387852; width:100%;" tabindex="1"></canvas>
     </div>
 </div>
 

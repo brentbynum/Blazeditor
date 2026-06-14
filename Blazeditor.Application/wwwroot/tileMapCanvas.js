@@ -184,12 +184,12 @@
             if (tile.role === blazeditor.tileRole.floor) {
                 roles.floors.push(tile);
             } else if (tile.role === blazeditor.tileRole.shim) {
-                if (tile.properties && tile.properties.ShimType) {
-                    if (tile.properties.ShimType === blazeditor.shimType.run) {
+                if (tile.shimProperties && tile.shimProperties.shimType) {
+                    if (tile.shimProperties.shimType === blazeditor.shimType.run) {
                         roles.shimRuns.push(tile);
-                    } else if (tile.properties.ShimType === blazeditor.shimType.capMask) {
+                    } else if (tile.shimProperties.shimType === blazeditor.shimType.capMask) {
                         roles.shimCapMasks.push(tile);
-                    } else if (tile.properties.ShimType === blazeditor.shimType.overhangMask) {
+                    } else if (tile.shimProperties.shimType === blazeditor.shimType.overhangMask) {
                         roles.shimOverhangMasks.push(tile);
                     }
                 }
